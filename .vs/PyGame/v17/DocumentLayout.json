@@ -1,0 +1,37 @@
+{
+  "Version": 1,
+  "WorkspaceRootPath": "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\",
+  "Documents": [
+    {
+      "AbsoluteMoniker": "D:0:0:{9BE2D989-F877-49B2-B1AA-08FD766A54D5}|PyGame.csproj|c:\\users\\user\\documents\\github\\py_game\\py_game\\core\\camera2d.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{9BE2D989-F877-49B2-B1AA-08FD766A54D5}|PyGame.csproj|solutionrelative:core\\camera2d.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    }
+  ],
+  "DocumentGroupContainers": [
+    {
+      "Orientation": 0,
+      "VerticalTabListWidth": 256,
+      "DocumentGroups": [
+        {
+          "DockedWidth": 200,
+          "SelectedChildIndex": 0,
+          "Children": [
+            {
+              "$type": "Document",
+              "DocumentIndex": 0,
+              "Title": "Camera2D.cs",
+              "DocumentMoniker": "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\Core\\Camera2D.cs",
+              "RelativeDocumentMoniker": "Core\\Camera2D.cs",
+              "ToolTip": "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\Core\\Camera2D.cs",
+              "RelativeToolTip": "Core\\Camera2D.cs",
+              "ViewState": "AQIAAAAAAAAAAAAAAAAAABQAAAAAAAAA",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-03-11T23:53:50.796Z",
+              "EditorCaption": ""
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
