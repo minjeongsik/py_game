@@ -100,8 +100,8 @@ public sealed class Game1 : Game
 
     private void UpdateTitle()
     {
-        if (_input.WasPressed(Keys.Up)) _titleSelection = (_titleSelection + 2) % 3;
-        if (_input.WasPressed(Keys.Down)) _titleSelection = (_titleSelection + 1) % 3;
+        if (_input.WasPressed(Keys.Up) || _input.WasPressed(Keys.W)) _titleSelection = (_titleSelection + 2) % 3;
+        if (_input.WasPressed(Keys.Down) || _input.WasPressed(Keys.S)) _titleSelection = (_titleSelection + 1) % 3;
         if (!_input.WasPressed(Keys.Enter))
         {
             return;
@@ -232,8 +232,8 @@ public sealed class Game1 : Game
     private void UpdatePause()
     {
         var options = new[] { "RESUME", "SAVE", "TITLE" };
-        if (_input.WasPressed(Keys.Up)) _pauseSelection = (_pauseSelection + options.Length - 1) % options.Length;
-        if (_input.WasPressed(Keys.Down)) _pauseSelection = (_pauseSelection + 1) % options.Length;
+        if (_input.WasPressed(Keys.Up) || _input.WasPressed(Keys.W)) _pauseSelection = (_pauseSelection + options.Length - 1) % options.Length;
+        if (_input.WasPressed(Keys.Down) || _input.WasPressed(Keys.S)) _pauseSelection = (_pauseSelection + 1) % options.Length;
 
         if (_input.WasPressed(Keys.Escape))
         {
@@ -534,10 +534,5 @@ public sealed class Game1 : Game
     private void UpdateWindowTitle()
     {
         Window.Title = $"Aether Trail | {_state.CurrentState} | Zone {_activeMap.CurrentZoneName} | Party {_session.Party.Count} | Vitals {_session.ActiveCreature.CurrentVitality}/{_session.ActiveCreature.MaxVitality}";
-    }
-
-    private void UpdateWindowTitle()
-    {
-        Window.Title = $"Aether Trail Prototype | {_stateManager.CurrentState} | Zone: {_worldMap.CurrentZoneName} | Pos: {_player.WorldPosition.X:0.0},{_player.WorldPosition.Y:0.0}";
     }
 }
