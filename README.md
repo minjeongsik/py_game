@@ -1,64 +1,73 @@
-# Aether Trail (MonoGame Prototype)
+# Aether Trail (MonoGame Vertical Slice)
 
-오리지널 2D 몬스터 수집 RPG를 목표로 하는 C# + MonoGame 프로젝트입니다.
-현재는 **첫 번째 플레이 가능한 골격(Vertical Slice 0.1)** 에 집중하여,
-타이틀 화면에서 월드 진입 후 이동/충돌/랜덤 인카운터 트리거까지 동작합니다.
-
-## 기술 스택
-- C# (.NET 8)
-- MonoGame DesktopGL
-- JSON 기반 데이터
+C# + MonoGame로 만든 오리지널 2D 수집형 RPG 프로토타입입니다.
+현재 버전은 **탐험 → 인카운터 → 턴제 전투 → 포획/승리 → 저장/로드** 루프를 실제로 플레이할 수 있는 vertical slice에 집중합니다.
 
 ## 실행 방법
 1. .NET 8 SDK 설치
-2. 저장소 루트에서 실행:
+2. 루트 폴더에서 실행
    - `dotnet restore`
    - `dotnet build`
    - `dotnet run`
 
-## 현재 구현 범위
-- 게임 상태 관리
-  - Title
-  - WorldExploration
-  - PauseMenu
-  - EncounterOverlay(임시 전투 진입 화면)
+## 현재 구현된 핵심 시스템
+- Title 메뉴: `New Game / Continue / Exit`
 - 월드 탐험
-  - 탑다운 2D 이동 (WASD / 방향키)
-  - 충돌 타일
-  - 카메라 따라오기
-  - JSON 맵 로딩
-- 랜덤 인카운터 골격
-  - 특수 지형 타일(맵의 `2`) 이동 중 확률 트리거
-- 저장/로드 골격
-  - F5 저장
-  - F9 로드
-  - 플레이어 위치 / 파티 / 인벤토리 구조 포함
-- 데이터 모델 골격
-  - CreatureSpeciesDefinition
-  - CreatureInstance
-  - MoveDefinition
-  - ItemDefinition
-  - ZoneDefinition
+  - 탑다운 이동 (WASD + 방향키)
+  - 충돌/카메라 추적
+  - 2개 구역: `Haven Hamlet`(안전 구역), `Whisper Field`(인카운터 구역)
+  - 포탈 기반 구역 이동
+- 랜덤 인카운터
+  - 특정 지형 타일에서만 발동
+  - 구역별 출현 테이블/레벨 범위/확률 데이터화(JSON)
+- 턴제 전투 (1 vs 1)
+  - 메뉴: `Attack / Item / Capture / Run`
+  - 3개 이상 기술, HP/속도/간단 데미지 계산
+  - 승리/패배/도주/포획 처리 후 월드 복귀
+- 포획/파티/저장소
+  - 포획 아이템 사용
+  - 성공/실패 판정
+  - 파티 최대 인원 초과 시 저장소로 이동
+- 저장/로드
+  - 저장 항목: 현재 구역, 좌표, 파티, 저장소, 인벤토리
+  - `Continue`에서 저장 데이터 로드
 
-## 조작
-- `Enter`: 타이틀 -> 월드 진입, 인카운터 오버레이 종료
-- `WASD` 또는 `방향키`: 이동
-- `Esc`: 일시정지 메뉴 열기/닫기
-- `F5`: 저장
-- `F9`: 로드
+## 조작키
+- 공통
+  - `Enter`: 선택/확정
+  - `Esc`: 취소/뒤로/일시정지
+  - `F3`: 디버그 오버레이 On/Off
+- 월드
+  - `WASD` 또는 `방향키`: 이동
+  - `F5`: 즉시 저장
+- 전투
+  - `↑/↓`: 메뉴 이동
+  - `Enter`: 행동 선택
+  - `Esc`: 하위 메뉴에서 상위 메뉴로
 
-## 폴더 구조
-- `Core/`: 상태 관리, 입력, 카메라
-- `World/`: 맵, 로더, 플레이어 이동, 인카운터, 월드 렌더링
-- `Creatures/`: 크리처 관련 모델
-- `Data/`: 전투 기술/아이템/지역/세이브 모델 및 저장 서비스
-- `UI/`: 화면 오버레이 렌더링
-- `Content/Data/`: JSON 콘텐츠(맵)
+## 데이터 파일
+- `Content/Data/creatures.json`: 생물 종 정의
+- `Content/Data/moves.json`: 기술 정의
+- `Content/Data/items.json`: 아이템 정의
+- `Content/Data/zones.json`: 구역/인카운터 테이블 정의
+- `Content/Data/Maps/*.json`: 맵 타일 + 포탈 정의
 
-## 미구현 / 다음 단계
-- 실제 전투 시스템 (턴 처리, 스킬 실행, 피해 계산)
-- 파티/인벤토리 UI
-- 크리처 획득 루프
-- 타일셋/애니메이션/사운드 리소스 파이프라인
-- NPC, 상호작용 오브젝트, 퀘스트 흐름
+## 저장 위치
+- Windows 기준: `%LocalAppData%/PyGame/savegame.json`
+- 코드 경로: `Environment.SpecialFolder.LocalApplicationData` 하위
 
+## 수동 테스트 절차 (권장)
+1. 타이틀에서 `New Game` 시작
+2. 마을에서 포탈을 통해 필드로 이동
+3. 필드의 인카운터 타일 이동으로 전투 진입 확인
+4. `Attack`으로 승리 또는 `Run`으로 도주 확인
+5. `Capture`로 포획 시 파티/저장소 반영 확인
+6. `Item`으로 회복 아이템 사용 확인
+7. `F5` 저장 후 종료
+8. 재실행 → `Continue`로 동일 상태 복원 확인
+
+## 아직 미구현
+- 타입 상성/상태이상/정교한 AI
+- 레벨업/진화/스킬 학습 확장
+- NPC/퀘스트/상점 시스템
+- 사운드 리소스 실제 재생 (현재는 구조만 확장 가능)

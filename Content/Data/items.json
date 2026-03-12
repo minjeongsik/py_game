@@ -1,0 +1,4 @@
+[
+  { "Id": "tonic_drop", "Name": "Tonic Drop", "Category": "Healing", "Description": "Restores 18 vitality.", "HealAmount": 18, "CapturePower": 0.0 },
+  { "Id": "lure_capsule", "Name": "Lure Capsule", "Category": "Capture", "Description": "Captures weakened wild creatures.", "HealAmount": 0, "CapturePower": 0.42 }
+]

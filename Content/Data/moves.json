@@ -1,0 +1,9 @@
+[
+  { "Id": "nudge", "Name": "Nudge", "Power": 6, "EssenceType": "Neutral" },
+  { "Id": "leaf_flick", "Name": "Leaf Flick", "Power": 9, "EssenceType": "Bloom" },
+  { "Id": "wind_dart", "Name": "Wind Dart", "Power": 10, "EssenceType": "Aero" },
+  { "Id": "spark_bite", "Name": "Spark Bite", "Power": 10, "EssenceType": "Volt" },
+  { "Id": "flare_peck", "Name": "Flare Peck", "Power": 11, "EssenceType": "Flare" },
+  { "Id": "stream_tap", "Name": "Stream Tap", "Power": 10, "EssenceType": "Tide" },
+  { "Id": "thorn_drive", "Name": "Thorn Drive", "Power": 12, "EssenceType": "Bloom" }
+]

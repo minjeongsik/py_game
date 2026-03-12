@@ -8,15 +8,17 @@ public sealed class SaveGameData
     public Vector2Serializable PlayerPosition { get; set; } = new();
     public string CurrentZoneId { get; set; } = string.Empty;
     public List<CreatureInstance> Party { get; set; } = [];
+    public List<CreatureInstance> Storage { get; set; } = [];
     public List<InventoryEntry> Inventory { get; set; } = [];
 
-    public static SaveGameData CreateFromPlayer(Vector2 playerPosition, string zoneId, List<CreatureInstance> party, List<InventoryEntry> inventory)
+    public static SaveGameData CreateFromSession(string zoneId, Vector2 playerPosition, List<CreatureInstance> party, List<CreatureInstance> storage, List<InventoryEntry> inventory)
     {
         return new SaveGameData
         {
             PlayerPosition = new Vector2Serializable { X = playerPosition.X, Y = playerPosition.Y },
             CurrentZoneId = zoneId,
             Party = party,
+            Storage = storage,
             Inventory = inventory
         };
     }
