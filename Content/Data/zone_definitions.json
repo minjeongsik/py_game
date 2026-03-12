@@ -1,0 +1,8 @@
+[
+  {
+    "Id": "starter_vale",
+    "Name": "Starter Vale",
+    "MapDataPath": "world_map.json",
+    "EncounterSpeciesPool": ["mossmite", "quarryn"]
+  }
+]
