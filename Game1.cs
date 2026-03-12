@@ -10,7 +10,7 @@ using PyGame.World;
 
 namespace PyGame;
 
-public sealed class Game1 : Game
+public sealed class Game1 : Microsoft.Xna.Framework.Game
 {
     private readonly GraphicsDeviceManager _graphics;
     private SpriteBatch? _spriteBatch;
