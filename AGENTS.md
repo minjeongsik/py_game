@@ -33,3 +33,11 @@ but it must avoid protected franchise-specific expression.
 - After coding, explain changed files and why.
 - Validate buildability where possible.
 - If a task is too large, implement a solid vertical slice first instead of a fake full system.
+
+## Build and verification rules
+- Do not create a PR unless the project builds successfully.
+- For C# changes, run the project build after every code modification.
+- If the build cannot be run in the environment, explicitly say so and do not claim success.
+- Fix one problem at a time with minimal, high-confidence changes.
+- Do not widen access modifiers unless necessary and justified.
+- Report the exact root cause before coding.
