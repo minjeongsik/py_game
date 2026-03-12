@@ -102,7 +102,6 @@ public sealed class Game1 : Game
     {
         if (_input.WasPressed(Keys.Up)) _titleSelection = (_titleSelection + 2) % 3;
         if (_input.WasPressed(Keys.Down)) _titleSelection = (_titleSelection + 1) % 3;
-
         if (!_input.WasPressed(Keys.Enter))
         {
             return;
@@ -535,5 +534,10 @@ public sealed class Game1 : Game
     private void UpdateWindowTitle()
     {
         Window.Title = $"Aether Trail | {_state.CurrentState} | Zone {_activeMap.CurrentZoneName} | Party {_session.Party.Count} | Vitals {_session.ActiveCreature.CurrentVitality}/{_session.ActiveCreature.MaxVitality}";
+    }
+
+    private void UpdateWindowTitle()
+    {
+        Window.Title = $"Aether Trail Prototype | {_stateManager.CurrentState} | Zone: {_worldMap.CurrentZoneName} | Pos: {_player.WorldPosition.X:0.0},{_player.WorldPosition.Y:0.0}";
     }
 }

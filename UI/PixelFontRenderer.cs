@@ -54,7 +54,6 @@ public static class PixelFontRenderer
         ['='] = ["00000","11111","00000","11111","00000","00000","00000"],
         ['>'] = ["00001","00010","00100","01000","00100","00010","00001"],
         ['|'] = ["00100","00100","00100","00100","00100","00100","00100"],
-        [' '] = ["00000","00000","00000","00000","00000","00000","00000"]
     };
 
     public static void DrawLines(SpriteBatch spriteBatch, Texture2D pixel, Vector2 startPosition, IEnumerable<string> lines, int scale, Color color)
