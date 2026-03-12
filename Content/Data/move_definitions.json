@@ -1,0 +1,30 @@
+[
+  {
+    "Id": "pulse_hit",
+    "Name": "Pulse Hit",
+    "Power": 8,
+    "EnergyCost": 0,
+    "EssenceType": "Neutral"
+  },
+  {
+    "Id": "flare_bite",
+    "Name": "Flare Bite",
+    "Power": 11,
+    "EnergyCost": 2,
+    "EssenceType": "Spark"
+  },
+  {
+    "Id": "mist_whorl",
+    "Name": "Mist Whorl",
+    "Power": 11,
+    "EnergyCost": 2,
+    "EssenceType": "Mist"
+  },
+  {
+    "Id": "stone_tap",
+    "Name": "Stone Tap",
+    "Power": 11,
+    "EnergyCost": 2,
+    "EssenceType": "Stone"
+  }
+]

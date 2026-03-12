@@ -1,0 +1,32 @@
+[
+  {
+    "Id": "emberlynx",
+    "Name": "Emberlynx",
+    "EssenceType": "Spark",
+    "BaseVitality": 28,
+    "BasePower": 12,
+    "BaseGuard": 9,
+    "BaseSpeed": 13,
+    "LearnableMoveIds": ["pulse_hit", "flare_bite"]
+  },
+  {
+    "Id": "mossmite",
+    "Name": "Mossmite",
+    "EssenceType": "Mist",
+    "BaseVitality": 30,
+    "BasePower": 10,
+    "BaseGuard": 11,
+    "BaseSpeed": 10,
+    "LearnableMoveIds": ["pulse_hit", "mist_whorl"]
+  },
+  {
+    "Id": "quarryn",
+    "Name": "Quarryn",
+    "EssenceType": "Stone",
+    "BaseVitality": 34,
+    "BasePower": 11,
+    "BaseGuard": 13,
+    "BaseSpeed": 8,
+    "LearnableMoveIds": ["pulse_hit", "stone_tap"]
+  }
+]
