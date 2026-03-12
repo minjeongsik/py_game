@@ -1,0 +1,24 @@
+[
+  {
+    "Id": "haven_hamlet",
+    "Name": "Haven Hamlet",
+    "MapDataPath": "Maps/haven_hamlet.json",
+    "AllowEncounters": false,
+    "EncounterRatePerSecond": 0.0,
+    "EncounterTable": []
+  },
+  {
+    "Id": "whisper_field",
+    "Name": "Whisper Field",
+    "MapDataPath": "Maps/whisper_field.json",
+    "AllowEncounters": true,
+    "EncounterRatePerSecond": 0.22,
+    "EncounterTable": [
+      { "SpeciesId": "mossel", "MinLevel": 3, "MaxLevel": 5, "Weight": 30 },
+      { "SpeciesId": "glimmerat", "MinLevel": 3, "MaxLevel": 5, "Weight": 25 },
+      { "SpeciesId": "brookit", "MinLevel": 4, "MaxLevel": 6, "Weight": 20 },
+      { "SpeciesId": "emberyn", "MinLevel": 4, "MaxLevel": 6, "Weight": 15 },
+      { "SpeciesId": "thornix", "MinLevel": 5, "MaxLevel": 7, "Weight": 10 }
+    ]
+  }
+]

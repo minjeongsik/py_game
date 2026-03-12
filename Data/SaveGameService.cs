@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Microsoft.Xna.Framework;
+using PyGame.Creatures;
 
 namespace PyGame.Data;
 
@@ -31,8 +32,12 @@ public sealed class SaveGameService
             return null;
         }
 
-        return new SaveSnapshot(data.PlayerPosition.ToVector2(), data.CurrentZoneId, data.Party, data.Inventory);
+        return new SaveSnapshot(data.PlayerPosition.ToVector2(), data.CurrentZoneId, data.Party, data.Storage, data.Inventory);
     }
+
+    public bool HasSaveFile() => File.Exists(GetSavePath());
+
+    public string GetSaveFilePathForDisplay() => GetSavePath();
 
     private static string GetSavePath()
     {
@@ -41,4 +46,9 @@ public sealed class SaveGameService
     }
 }
 
-public sealed record SaveSnapshot(Vector2 PlayerPosition, string ZoneId, List<PyGame.Creatures.CreatureInstance> Party, List<InventoryEntry> Inventory);
+public sealed record SaveSnapshot(
+    Vector2 PlayerPosition,
+    string ZoneId,
+    List<CreatureInstance> Party,
+    List<CreatureInstance> Storage,
+    List<InventoryEntry> Inventory);

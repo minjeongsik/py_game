@@ -8,5 +8,6 @@ public sealed class CreatureSpeciesDefinition
     public int BaseVitality { get; set; }
     public int BasePower { get; set; }
     public int BaseGuard { get; set; }
+    public int BaseSpeed { get; set; }
     public List<string> LearnableMoveIds { get; set; } = [];
 }

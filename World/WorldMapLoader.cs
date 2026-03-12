@@ -26,6 +26,15 @@ public static class WorldMapLoader
             }
         }
 
-        return new WorldMap(data.Name, data.TileSize, data.PlayerSpawnX, data.PlayerSpawnY, tiles);
+        var portals = data.Portals.Select(p => new WorldPortal
+        {
+            X = p.X,
+            Y = p.Y,
+            TargetZoneId = p.TargetZoneId,
+            TargetX = p.TargetX,
+            TargetY = p.TargetY
+        }).ToList();
+
+        return new WorldMap(data.Id, data.Name, data.TileSize, data.PlayerSpawnX, data.PlayerSpawnY, tiles, portals);
     }
 }

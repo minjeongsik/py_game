@@ -6,19 +6,23 @@ public sealed class WorldMap
 {
     private readonly int[,] _tiles;
 
-    public WorldMap(string zoneName, int tileSize, int playerSpawnX, int playerSpawnY, int[,] tiles)
+    public WorldMap(string id, string zoneName, int tileSize, int playerSpawnX, int playerSpawnY, int[,] tiles, List<WorldPortal> portals)
     {
+        Id = id;
         CurrentZoneName = zoneName;
         TileSize = tileSize;
         PlayerSpawnX = playerSpawnX;
         PlayerSpawnY = playerSpawnY;
         _tiles = tiles;
+        Portals = portals;
     }
 
+    public string Id { get; }
     public string CurrentZoneName { get; }
     public int TileSize { get; }
     public int PlayerSpawnX { get; }
     public int PlayerSpawnY { get; }
+    public List<WorldPortal> Portals { get; }
 
     public int Width => _tiles.GetLength(1);
     public int Height => _tiles.GetLength(0);
@@ -36,9 +40,7 @@ public sealed class WorldMap
     }
 
     public bool IsBlockedTile(int tileId) => tileId == 1;
-
-    public bool IsWalkableTile(int tileId) => !IsBlockedTile(tileId);
-
+    public bool IsSafeTile(int tileId) => tileId == 3;
     public bool IsEncounterTile(int tileId) => tileId == 2;
 
     public bool IsBlockedAtWorldPosition(Vector2 position)
@@ -60,7 +62,7 @@ public sealed class WorldMap
 
     public Point ResolveSpawnTile()
     {
-        if (IsWalkableTile(GetTileAt(PlayerSpawnX, PlayerSpawnY)))
+        if (!IsBlockedTile(GetTileAt(PlayerSpawnX, PlayerSpawnY)))
         {
             return new Point(PlayerSpawnX, PlayerSpawnY);
         }
@@ -69,7 +71,7 @@ public sealed class WorldMap
         {
             for (var x = 0; x < Width; x++)
             {
-                if (IsWalkableTile(GetTileAt(x, y)))
+                if (!IsBlockedTile(GetTileAt(x, y)))
                 {
                     return new Point(x, y);
                 }
@@ -78,4 +80,18 @@ public sealed class WorldMap
 
         return Point.Zero;
     }
+
+    public WorldPortal? TryGetPortalAt(Point tile)
+    {
+        return Portals.FirstOrDefault(p => p.X == tile.X && p.Y == tile.Y);
+    }
+}
+
+public sealed class WorldPortal
+{
+    public required int X { get; init; }
+    public required int Y { get; init; }
+    public required string TargetZoneId { get; init; }
+    public required int TargetX { get; init; }
+    public required int TargetY { get; init; }
 }

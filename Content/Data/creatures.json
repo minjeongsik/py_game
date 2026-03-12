@@ -1,0 +1,8 @@
+[
+  { "Id": "spriglet", "Name": "Spriglet", "EssenceType": "Bloom", "BaseVitality": 16, "BasePower": 6, "BaseGuard": 6, "BaseSpeed": 7, "LearnableMoveIds": ["nudge", "leaf_flick", "wind_dart"] },
+  { "Id": "emberyn", "Name": "Emberyn", "EssenceType": "Flare", "BaseVitality": 14, "BasePower": 8, "BaseGuard": 5, "BaseSpeed": 8, "LearnableMoveIds": ["nudge", "spark_bite", "flare_peck"] },
+  { "Id": "mossel", "Name": "Mossel", "EssenceType": "Bloom", "BaseVitality": 18, "BasePower": 5, "BaseGuard": 8, "BaseSpeed": 4, "LearnableMoveIds": ["nudge", "leaf_flick"] },
+  { "Id": "glimmerat", "Name": "Glimmerat", "EssenceType": "Volt", "BaseVitality": 13, "BasePower": 7, "BaseGuard": 5, "BaseSpeed": 9, "LearnableMoveIds": ["nudge", "spark_bite"] },
+  { "Id": "brookit", "Name": "Brookit", "EssenceType": "Tide", "BaseVitality": 15, "BasePower": 6, "BaseGuard": 7, "BaseSpeed": 6, "LearnableMoveIds": ["nudge", "stream_tap"] },
+  { "Id": "thornix", "Name": "Thornix", "EssenceType": "Bloom", "BaseVitality": 17, "BasePower": 9, "BaseGuard": 6, "BaseSpeed": 5, "LearnableMoveIds": ["nudge", "leaf_flick", "thorn_drive"] }
+]
