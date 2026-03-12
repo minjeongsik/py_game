@@ -37,6 +37,8 @@ public sealed class WorldMap
 
     public bool IsBlockedTile(int tileId) => tileId == 1;
 
+    public bool IsWalkableTile(int tileId) => !IsBlockedTile(tileId);
+
     public bool IsEncounterTile(int tileId) => tileId == 2;
 
     public bool IsBlockedAtWorldPosition(Vector2 position)
@@ -54,5 +56,26 @@ public sealed class WorldMap
     public Point ToTilePosition(Vector2 worldPosition)
     {
         return new Point((int)(worldPosition.X / TileSize), (int)(worldPosition.Y / TileSize));
+    }
+
+    public Point ResolveSpawnTile()
+    {
+        if (IsWalkableTile(GetTileAt(PlayerSpawnX, PlayerSpawnY)))
+        {
+            return new Point(PlayerSpawnX, PlayerSpawnY);
+        }
+
+        for (var y = 0; y < Height; y++)
+        {
+            for (var x = 0; x < Width; x++)
+            {
+                if (IsWalkableTile(GetTileAt(x, y)))
+                {
+                    return new Point(x, y);
+                }
+            }
+        }
+
+        return Point.Zero;
     }
 }

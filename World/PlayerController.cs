@@ -15,6 +15,8 @@ public sealed class PlayerController
     public Vector2 WorldPosition { get; set; }
     public float MoveSpeed { get; }
     public bool MovedThisFrame { get; private set; }
+    public Vector2 LastInputDirection { get; private set; }
+    public bool InputDetectedThisFrame { get; private set; }
 
     public Rectangle Bounds => new((int)WorldPosition.X + 4, (int)WorldPosition.Y + 4, 24, 24);
 
@@ -27,10 +29,14 @@ public sealed class PlayerController
         if (input.IsDown(Keys.A) || input.IsDown(Keys.Left)) direction.X -= 1;
         if (input.IsDown(Keys.D) || input.IsDown(Keys.Right)) direction.X += 1;
 
+        InputDetectedThisFrame = direction != Vector2.Zero;
+
         if (direction != Vector2.Zero)
         {
             direction.Normalize();
         }
+
+        LastInputDirection = direction;
 
         var delta = (float)gameTime.ElapsedGameTime.TotalSeconds;
         var attempted = WorldPosition + direction * MoveSpeed * delta;
@@ -60,9 +66,9 @@ public sealed class PlayerController
         var corners = new[]
         {
             new Vector2(probe.Left, probe.Top),
-            new Vector2(probe.Right, probe.Top),
-            new Vector2(probe.Left, probe.Bottom),
-            new Vector2(probe.Right, probe.Bottom)
+            new Vector2(probe.Right - 1, probe.Top),
+            new Vector2(probe.Left, probe.Bottom - 1),
+            new Vector2(probe.Right - 1, probe.Bottom - 1)
         };
 
         foreach (var corner in corners)
