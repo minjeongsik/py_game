@@ -39,7 +39,11 @@ public sealed class Game1 : Game
 
         var contentPath = Path.Combine(AppContext.BaseDirectory, "Content", "Data");
         _worldMap = WorldMapLoader.Load(Path.Combine(contentPath, "world_map.json"));
-        _player = new PlayerController(new Vector2(_worldMap.PlayerSpawnX * _worldMap.TileSize, _worldMap.PlayerSpawnY * _worldMap.TileSize), 110f);
+
+        var spawnTile = _worldMap.ResolveSpawnTile();
+        _player = new PlayerController(new Vector2(spawnTile.X * _worldMap.TileSize, spawnTile.Y * _worldMap.TileSize), 110f);
+        _encounterService = new EncounterService(0.18f);
+        _saveGameService = new SaveGameService();
 
         _stateRegistry = new GameStateRegistry([
             new TitleState(),
@@ -76,8 +80,65 @@ public sealed class Game1 : Game
         _inputState.Update();
         UpdateWindowTitle();
 
-        var activeState = _stateRegistry.Get(_stateManager.CurrentState);
-        activeState.Update(gameTime, _stateContext);
+        if (_inputState.WasPressed(Microsoft.Xna.Framework.Input.Keys.F5))
+        {
+            var save = SaveGameData.CreateFromPlayer(_player.WorldPosition, _worldMap.CurrentZoneName, [], []);
+            _saveGameService.Save(save);
+        }
+
+        if (_inputState.WasPressed(Microsoft.Xna.Framework.Input.Keys.F9))
+        {
+            var save = _saveGameService.TryLoad();
+            if (save is not null)
+            {
+                _player.WorldPosition = save.PlayerPosition;
+            }
+        }
+
+        Window.Title = $"Aether Trail Prototype | {_stateManager.CurrentState} | Zone: {_worldMap.CurrentZoneName} | Pos: {_player.WorldPosition.X:0.0},{_player.WorldPosition.Y:0.0}";
+
+        switch (_stateManager.CurrentState)
+        {
+            case GameStateType.Title:
+                if (_inputState.WasPressed(Microsoft.Xna.Framework.Input.Keys.Enter))
+                {
+                    _stateManager.ChangeState(GameStateType.WorldExploration);
+                }
+                break;
+
+            case GameStateType.WorldExploration:
+                if (_inputState.WasPressed(Microsoft.Xna.Framework.Input.Keys.Escape))
+                {
+                    _stateManager.ChangeState(GameStateType.PauseMenu);
+                    break;
+                }
+
+                _player.Update(gameTime, _inputState, _worldMap);
+                _camera.Follow(_player.WorldPosition, GraphicsDevice.Viewport, _worldMap.PixelWidth, _worldMap.PixelHeight);
+
+                if (_worldMap.IsEncounterTileAtWorldPosition(_player.WorldPosition) && _player.MovedThisFrame)
+                {
+                    if (_encounterService.RollEncounter(gameTime))
+                    {
+                        _stateManager.ChangeState(GameStateType.EncounterOverlay);
+                    }
+                }
+                break;
+
+            case GameStateType.PauseMenu:
+                if (_inputState.WasPressed(Microsoft.Xna.Framework.Input.Keys.Escape))
+                {
+                    _stateManager.ChangeState(GameStateType.WorldExploration);
+                }
+                break;
+
+            case GameStateType.EncounterOverlay:
+                if (_inputState.WasPressed(Microsoft.Xna.Framework.Input.Keys.Enter))
+                {
+                    _stateManager.ChangeState(GameStateType.WorldExploration);
+                }
+                break;
+        }
 
         base.Update(gameTime);
     }
