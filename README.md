@@ -66,6 +66,20 @@ C# + MonoGame로 만든 오리지널 2D 수집형 RPG 프로토타입입니다.
 7. `F5` 저장 후 종료
 8. 재실행 → `Continue`로 동일 상태 복원 확인
 
+
+## 빌드/검증 명령 (권장 순서)
+1. `dotnet restore PyGame.sln`
+2. `dotnet build PyGame.sln`
+3. `dotnet run --project PyGame.csproj`
+
+## 플레이 품질 점검 체크리스트
+- 타이틀에서 `↑/↓` 또는 `W/S` 로 메뉴 이동 후 `Enter` 진입
+- 월드에서 `WASD`/방향키로 이동 시 카메라가 플레이어를 따라가는지 확인
+- 필드(Whisper Field) 인카운터 타일 이동으로 전투 진입 확인
+- 전투에서 `Attack / Item / Capture / Run` 각각 동작 후 월드 복귀 흐름 확인
+- `F3`로 디버그 오버레이 토글 확인 (`STATE/POS/INPUT/MOVED` 값 갱신)
+- `F5` 저장 후 재실행 `Continue` 로 상태 복원 확인
+
 ## 아직 미구현
 - 타입 상성/상태이상/정교한 AI
 - 레벨업/진화/스킬 학습 확장
