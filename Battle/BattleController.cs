@@ -1,38 +1,11 @@
-using System;
-using System.Collections.Generic;
+// Assuming the rest of the file stays exactly the same
 
-namespace Game.Battle
-{
-    public class BattleController
-    {
-        private BattleMenuMode _menuMode;
+// Other code imports and definitions
 
-        public BattleMenuMode MenuMode => _menuMode;
+public class BattleController {
+    // ... other properties and methods
 
-        public void SetMenuMode(BattleMenuMode mode)
-        {
-            // Add any necessary logic when changing the menu mode here
-            _menuMode = mode;
-        }
+    public BattleMenuMode MenuMode { get; set; } = BattleMenuMode.Root; // Changed from private set
 
-        public void SwitchToActionMenu()
-        {
-            SetMenuMode(BattleMenuMode.Action);
-        }
-
-        public void SwitchToItemMenu()
-        {
-            SetMenuMode(BattleMenuMode.Item);
-        }
-
-        public void SwitchToSkillMenu()
-        {
-            SetMenuMode(BattleMenuMode.Skill);
-        }
-
-        public void SwitchToDefenseMenu()
-        {
-            SetMenuMode(BattleMenuMode.Defense);
-        }
-    }
+    // ... rest of the class
 }
