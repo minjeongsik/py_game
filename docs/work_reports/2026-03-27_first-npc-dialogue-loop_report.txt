@@ -1,0 +1,31 @@
+Summary
+- Implemented the first real NPC interaction loop on the new foundation: `World -> face NPC -> interact -> Dialogue -> World`.
+- Added one starter NPC to the starter map through the existing content definitions flow.
+- Kept the implementation minimal and data-driven without introducing a larger scripting or quest system.
+
+Files changed
+- `GameFlow/States/World/WorldState.cs`
+- `GameFlow/States/Dialogue/DialogueState.cs`
+- `Infrastructure/Content/GameDefinitionLoader.cs`
+- `Content/Definitions/game-definitions.json`
+
+Playable flow now supported
+- Start a new game from the title screen
+- Move to the starter NPC on the starter map
+- Face the NPC and press `Enter` or `Space`
+- `DialogueState` opens with multiple lines
+- Press `Enter` or `Space` to advance lines
+- After the last line, return cleanly to the same world session
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- NPCs currently only support position and dialogue lines for this playable slice; no quest, schedule, or movement behavior exists yet.
+- Trainer battle hooks remain in the architecture but are still placeholder-only and were not expanded in this task.
+- GUI interaction was not automated here, but the source flow and build confirm the active NPC/dialogue loop is wired through the new world and dialogue states.

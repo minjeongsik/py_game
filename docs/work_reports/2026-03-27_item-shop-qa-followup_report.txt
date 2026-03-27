@@ -1,0 +1,29 @@
+Root cause
+
+Item/shop milestone loop 자체는 동작했지만, 플레이 흐름 기준으로 보면 두 군데가 어색했습니다. Shop이 NPC별 품목 설정을 쓰지 않고 하드코드 목록만 표시했고, milestone 보상 이후에도 Guide 대사가 계속 보상 직전처럼 읽힐 수 있었습니다.
+
+Files changed
+
+- [GameSession.cs](E:\min\job\ai\py_game\GameFlow\GameSession.cs)
+- [NpcDefinition.cs](E:\min\job\ai\py_game\Domain\Npc\NpcDefinition.cs)
+- [WorldState.cs](E:\min\job\ai\py_game\GameFlow\States\World\WorldState.cs)
+- [ShopState.cs](E:\min\job\ai\py_game\GameFlow\States\Shop\ShopState.cs)
+- [game-definitions.json](E:\min\job\ai\py_game\Content\Definitions\game-definitions.json)
+- [GameDefinitionLoader.cs](E:\min\job\ai\py_game\Infrastructure\Content\GameDefinitionLoader.cs)
+- [2026-03-27_item-shop-qa-followup_report.txt](E:\min\job\ai\py_game\docs\work_reports\2026-03-27_item-shop-qa-followup_report.txt)
+
+Build command run
+
+- `dotnet build PyGame.sln`
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues, if any
+
+- GUI를 여기서 실제로 조작하며 끝까지 플레이할 수는 없어서, 실행 시도 후 코드 경로와 빌드 기준으로 QA를 보강했습니다.
+- Bag은 아직 lead creature 대상만 지원합니다.
+- Shop은 NPC별 품목 데이터를 따르도록 바뀌었지만 현재는 실제 상점 NPC가 하나뿐입니다.

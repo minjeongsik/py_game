@@ -1,0 +1,52 @@
+Summary
+- Implemented the first playable wild encounter loop on the new foundation: `World -> encounter tile -> BattleState -> World`.
+- Added encounter-capable grass tiles and starter wild encounter definitions to the starter map data.
+- Upgraded the title, world, dialogue, and battle presentation so the prototype reads more like an intentional retro JRPG slice instead of a raw scaffold.
+
+Files changed
+- `Domain/World/TileType.cs`
+- `Domain/World/WorldMap.cs`
+- `GameFlow/States/Title/TitleState.cs`
+- `GameFlow/States/World/WorldState.cs`
+- `GameFlow/States/Dialogue/DialogueState.cs`
+- `GameFlow/States/Battle/BattleState.cs`
+- `UI/Dialogue/DialogueBoxRenderer.cs`
+- `UI/Menus/MenuRenderer.cs`
+- `Infrastructure/Content/GameDefinitionLoader.cs`
+- `Content/Definitions/game-definitions.json`
+
+Playable flow now supported
+- Start from title and choose `NEW GAME`
+- Walk through the starter town area
+- Enter grass tiles to roll a wild encounter
+- On encounter, transition into `BattleState`
+- Choose `WIN` or `RUN`
+- Return cleanly to the same world session after battle
+- Existing pause and NPC dialogue loops still remain available
+
+Map/layout cleanup
+- Expanded the starter map into a more intentional small-town layout
+- Added a readable path using `=` tiles
+- Added a dedicated grass patch for encounter testing
+- Repositioned the guide NPC onto the path area
+- Preserved clear distinction between floor, path, grass, walls, and NPC space
+
+Presentation/UI cleanup
+- Refined the title screen into a more composed retro-style layout
+- Improved world HUD framing and help panel layout
+- Improved dialogue screen framing and dialogue box readability
+- Reworked battle screen into a readable encounter panel with a real action menu
+- Kept all visuals lightweight and placeholder-friendly
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- Battle is still intentionally minimal: there is no move system, damage model, HP display, or capture flow yet.
+- Encounter rates and encounter tables are simple starter values and not yet tuned.
+- The starter map now feels more game-like, but it is still a very small single-area prototype rather than a full town/route structure.

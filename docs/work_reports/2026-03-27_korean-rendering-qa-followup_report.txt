@@ -1,0 +1,28 @@
+Root cause
+
+한글 문자열 데이터가 문제의 핵심이 아니라, 현재 UI 텍스트 렌더러가 영문 3x5 픽셀 글리프만 지원해서 한국어를 실제로 그릴 수 없는 구조였습니다.
+
+Files changed
+
+- E:\min\job\ai\py_game\PyGame.csproj
+- E:\min\job\ai\py_game\Core\Game1.cs
+- E:\min\job\ai\py_game\UI\Hud\PixelTextRenderer.cs
+- E:\min\job\ai\py_game\UI\Dialogue\DialogueBoxRenderer.cs
+- E:\min\job\ai\py_game\docs\work_reports\2026-03-27_korean-rendering-qa-followup_report.txt
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues, if any
+
+- 현재 한글 렌더링은 Windows 시스템 글꼴 경로를 사용하는 방식이라, 이 빌드 대상은 사실상 Windows 기준입니다.
+- 이 환경에서는 게임 창을 직접 띄워 사람 눈으로 끝까지 플레이하는 GUI QA를 완전하게 수행할 수는 없었습니다.
+- 대신 이번에는 상품성 기준으로 원인을 다시 추적했고, 문자열이 아니라 렌더링 경로 자체를 수정했습니다.
+- 이후 QA 기준은 단순 빌드 성공이 아니라 실제 표시 품질, 문구 자연스러움, 흐름 어색함, 상호작용 완성도를 우선으로 두고 진행해야 합니다.

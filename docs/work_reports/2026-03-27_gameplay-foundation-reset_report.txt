@@ -1,0 +1,104 @@
+Summary
+- Archived the old prototype gameplay code under `Legacy/OldPrototype/` and removed it from the active compile path.
+- Replaced the active gameplay path with a new Pokémon Gold-style foundation built around a thin MonoGame root, clean state flow, domain placeholders, and JSON-ready content definitions.
+- Confirmed the startup path is now `Program.cs -> Core/Game1.cs -> GameFlow/StateManager -> TitleState`.
+
+Archived files/folders
+- `Legacy/OldPrototype/Battle/`
+- `Legacy/OldPrototype/Core/`
+- `Legacy/OldPrototype/Creatures/`
+- `Legacy/OldPrototype/Data/`
+- `Legacy/OldPrototype/UI/`
+- `Legacy/OldPrototype/World/`
+- `Legacy/OldPrototype/Game1.cs`
+- `Legacy/OldPrototype/Content/Data/`
+
+New active architecture
+- `Core/`
+  - `Game1.cs`
+  - `Input/InputSnapshot.cs`
+  - `Rendering/PrimitiveRenderer.cs`
+  - `Audio/AudioService.cs`
+  - `Camera/Camera2D.cs`
+- `GameFlow/`
+  - `GameSession.cs`
+  - `DialogueScene.cs`
+  - `GameSessionFactory.cs`
+  - `StateManager/`
+  - `States/Title/TitleState.cs`
+  - `States/World/WorldState.cs`
+  - `States/Dialogue/DialogueState.cs`
+  - `States/Battle/BattleState.cs`
+  - `States/Pause/PauseState.cs`
+- `Domain/`
+  - `Creatures/`
+  - `Battle/`
+  - `World/`
+  - `Party/`
+  - `Inventory/`
+  - `Progression/`
+  - `Npc/`
+- `Infrastructure/`
+  - `Content/GameDefinitions.cs`
+  - `Content/GameDefinitionLoader.cs`
+  - `Save/SaveGameService.cs`
+- `UI/`
+  - `Menus/MenuRenderer.cs`
+  - `Hud/PixelTextRenderer.cs`
+  - `Dialogue/DialogueBoxRenderer.cs`
+- `Content/Definitions/game-definitions.json`
+
+Files changed
+- `PyGame.csproj`
+- `Core/Audio/AudioService.cs`
+- `Core/Camera/Camera2D.cs`
+- `Core/Game1.cs`
+- `Core/Input/InputSnapshot.cs`
+- `Core/Rendering/PrimitiveRenderer.cs`
+- `GameFlow/DialogueScene.cs`
+- `GameFlow/GameSession.cs`
+- `GameFlow/GameSessionFactory.cs`
+- `GameFlow/StateManager/GameContext.cs`
+- `GameFlow/StateManager/GameStateId.cs`
+- `GameFlow/StateManager/GameStateManager.cs`
+- `GameFlow/StateManager/IGameState.cs`
+- `GameFlow/States/Title/TitleState.cs`
+- `GameFlow/States/World/WorldState.cs`
+- `GameFlow/States/Dialogue/DialogueState.cs`
+- `GameFlow/States/Battle/BattleState.cs`
+- `GameFlow/States/Pause/PauseState.cs`
+- `Domain/Creatures/Creature.cs`
+- `Domain/Creatures/SpeciesDefinition.cs`
+- `Domain/Battle/Encounter.cs`
+- `Domain/Battle/EncounterDefinition.cs`
+- `Domain/World/WorldMap.cs`
+- `Domain/World/TileType.cs`
+- `Domain/World/MapWarp.cs`
+- `Domain/World/NpcPlacement.cs`
+- `Domain/Party/Party.cs`
+- `Domain/Inventory/InventoryBag.cs`
+- `Domain/Inventory/InventorySlot.cs`
+- `Domain/Progression/GameProgression.cs`
+- `Domain/Npc/NpcDefinition.cs`
+- `Infrastructure/Content/GameDefinitions.cs`
+- `Infrastructure/Content/GameDefinitionLoader.cs`
+- `Infrastructure/Save/SaveGameService.cs`
+- `UI/Hud/PixelTextRenderer.cs`
+- `UI/Menus/MenuRenderer.cs`
+- `UI/Dialogue/DialogueBoxRenderer.cs`
+- `Content/Definitions/game-definitions.json`
+- plus archived old prototype folders moved under `Legacy/OldPrototype/`
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- The new battle, dialogue, and pause states are foundation-level placeholders and do not yet implement full JRPG rules.
+- Save/load is only scaffolded and not yet wired into runtime flow.
+- The custom pixel text renderer is intentionally minimal and should be replaced or expanded once the UI direction is settled.
+- Existing docs still describe the old prototype and should be updated later if they are meant to represent the new foundation.

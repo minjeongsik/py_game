@@ -1,0 +1,50 @@
+Summary
+- Implemented the first active-party battle flow with switching and faint handling.
+- Added a dedicated in-world PC interaction path that opens the existing storage screen directly from the overworld.
+- Kept the current title/world/dialogue/encounter/capture/party/storage loop intact while extending battle into a more recognizable creature-RPG flow.
+
+Files changed
+- `Domain/Creatures/Creature.cs`
+- `Domain/Party/Party.cs`
+- `Domain/World/PcTerminal.cs`
+- `Domain/World/WorldMap.cs`
+- `GameFlow/States/Battle/BattleState.cs`
+- `GameFlow/States/Party/PartyState.cs`
+- `GameFlow/States/Storage/StorageState.cs`
+- `GameFlow/States/World/WorldState.cs`
+- `Infrastructure/Content/GameDefinitionLoader.cs`
+- `Content/Definitions/game-definitions.json`
+
+Party-switch battle flow now supported
+- Battle now includes `ATTACK / SWITCH / CAPTURE / RUN`
+- The active battler now comes from the runtime party instead of a fixed implicit single-creature assumption
+- `SWITCH` opens a lightweight in-battle party list
+- The player can select another non-fainted party creature
+- If the active creature faints and another usable creature exists, the player is forced to switch
+- If no usable party creatures remain, the battle resolves as a minimal clean defeat and the party is restored to a safe partial-HP state
+
+In-world PC interaction now supported
+- The starter map now defines a PC terminal in map data
+- Facing the PC terminal and pressing the interact key opens the storage screen directly from the overworld
+- Storage now returns to the correct previous state, so opening it from the overworld returns cleanly to the overworld
+- The previously blocked PC area is now reachable
+
+Presentation/UI improvements
+- Battle now shows the currently active player creature as a distinct combat participant with HP
+- In-battle switch mode shows party members and clearly marks unavailable/fainted entries
+- Result text and forced-switch prompts are more explicit
+- World interaction text now better communicates that the player can use the PC terminal
+- PC interaction is now data-backed rather than only implied by a visual marker
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- Switching is currently limited to the battle screen; there is no broader reorder/lead-selection flow in the field UI yet.
+- Defeat handling is intentionally simple and restores the party to a safe partial HP state instead of a fuller RPG recovery flow.
+- Storage still supports viewing only; transfer between party and storage was intentionally left out of this task.

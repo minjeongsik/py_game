@@ -1,0 +1,34 @@
+Summary
+- Implemented the first clean playable loop on the new foundation: `Title -> New Game -> World -> Pause -> World`.
+- Kept the active flow on the new architecture path: `Program.cs -> Core/Game1.cs -> GameFlow/StateManager -> TitleState/WorldState/PauseState`.
+- Simplified the starter world data to one small testable map with walkable floor and blocking wall tiles so movement and collision are easy to verify.
+
+Files changed
+- `GameFlow/States/Title/TitleState.cs`
+- `GameFlow/GameSession.cs`
+- `GameFlow/GameSessionFactory.cs`
+- `GameFlow/States/World/WorldState.cs`
+- `GameFlow/States/Pause/PauseState.cs`
+- `Infrastructure/Content/GameDefinitionLoader.cs`
+- `Content/Definitions/game-definitions.json`
+
+Playable flow now supported
+- Launch game
+- Title screen shows `NEW GAME`
+- `NEW GAME` creates a fresh session and enters `WorldState`
+- Player moves one tile at a time with arrow keys or `WASD`
+- Wall tiles block movement
+- `Esc` opens pause
+- `Resume` or `Esc` from pause returns cleanly to the same world session
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- World interaction hooks for dialogue and battle still exist architecturally, but the starter playable loop currently uses a single simple map with no active NPC or encounter content.
+- GUI launch was not separately automated here, but the source startup path and build output confirm the active flow goes through the new title/world/pause architecture.

@@ -1,0 +1,59 @@
+Summary
+
+Added the first trainer sight and progression loop on top of the current foundation. The east-route scout can now spot the player, start a trainer battle, remain defeated for the rest of the session, and feed a small objective flow driven by runtime progression flags.
+
+Files changed
+
+- Content/Definitions/game-definitions.json
+- Domain/Battle/Encounter.cs
+- Domain/Npc/NpcDefinition.cs
+- Domain/Progression/GameProgression.cs
+- Domain/World/NpcPlacement.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/World/WorldState.cs
+- Infrastructure/Content/GameDefinitionLoader.cs
+- docs/work_reports/2026-03-27_trainer-battle-and-progression-loop_report.txt
+
+Trainer battle flow now supported
+
+- Added a route trainer definition with facing direction, sight range, notice text, battle identity, and defeated flag key.
+- Moving into the trainer's visible lane triggers a trainer encounter automatically.
+- Trainer battles now set defeated and victory progression flags on win.
+- Defeated trainers no longer retrigger mandatory battles and now use defeated-state feedback.
+
+Progression/objective flow now supported
+
+- Talking to the Guide now grants the first objective flag to challenge Scout Rin.
+- Scout Rin only starts the mandatory trainer battle after that objective flag is active.
+- Beating Scout Rin sets a trainer-defeated flag and an objective-complete flag.
+- Guide and Elder now switch to acknowledgement dialogue after the trainer objective is cleared.
+
+Presentation/refinement improvements
+
+- Added trainer sight lane hints on the route so the encounter space reads more intentionally.
+- Trainer battle entry now uses clearer trainer notice text instead of reusing wild encounter language.
+- Defeated trainers are drawn with a dimmed palette to read as already cleared.
+- World HUD guidance now points the player toward the guide-first route flow.
+
+Optimization-minded improvements
+
+- Trainer sight checks iterate the current static map NPC list directly with no rebuilt lookup structures.
+- Sight detection now short-circuits early for non-trainers, defeated trainers, and unmet objective gates.
+- Trainer and wild battle entry continue to share the same encounter/battle pipeline instead of duplicating state paths.
+- Progression flags use the existing runtime HashSet with tiny helper methods instead of a new quest system.
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+
+- Trainer battles still use a single opponent creature and do not yet support multi-creature trainer rosters.
+- Progression flags are runtime-only and are not yet persisted through save/load.
+- The notice flow is intentionally lightweight and does not yet include a longer cutscene or trainer walk-up animation.

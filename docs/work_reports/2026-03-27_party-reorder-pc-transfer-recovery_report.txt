@@ -1,0 +1,70 @@
+Summary
+
+Added the first real overworld party-management and PC transfer loop on top of the current foundation. The Party screen can now set the lead creature, the Storage/PC screen supports deposit and withdraw, and full-party defeat now returns the player to a safe recovery point with a simple full-heal reset.
+
+Files changed
+
+- Content/Definitions/game-definitions.json
+- Domain/Party/CreatureStorage.cs
+- Domain/Party/Party.cs
+- Domain/World/WorldMap.cs
+- GameFlow/GameSession.cs
+- GameFlow/GameSessionFactory.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/Party/PartyState.cs
+- GameFlow/States/Storage/StorageState.cs
+- GameFlow/States/World/WorldState.cs
+- Infrastructure/Content/GameDefinitionLoader.cs
+
+Party reorder / lead-selection now supported
+
+- Party screen now shows the current lead clearly.
+- Pressing L on a selected party member moves it to the lead slot and sets it as the active battle creature.
+- The next wild or trainer battle uses the chosen lead when it is usable.
+- If the selected lead is fainted, battle startup falls back to the next usable party member.
+
+PC deposit / withdraw now supported
+
+- The in-world PC still opens the storage screen directly.
+- Storage now has separate party and box panes.
+- Enter or Space deposits from the party pane and withdraws from the storage pane.
+- The last party creature cannot be deposited.
+- Withdraw is blocked when the party is already full.
+- Action results are shown with direct feedback text.
+
+Defeat recovery flow now supported
+
+- Full-party defeat no longer ends as a generic retreat only.
+- Defeat now returns the player to a defined recovery point on the current starter map.
+- The party is restored with a simple full-heal rule and active lead reset.
+- After the defeat message is dismissed, the player returns to the world from the recovery point.
+
+Presentation/refinement improvements
+
+- Party screen now reads more clearly with lead, ready, and rest states.
+- Storage screen was rebuilt into a more readable retro PC layout with party list, box list, and detail panel.
+- World HUD now points more clearly to the PC area and PC tiles render as intentional terminals instead of generic markers.
+- Feedback text was tightened across party, storage, world, and battle transitions.
+
+Optimization-minded improvements
+
+- Party and storage transfer flows now work on the existing runtime collections directly without extra temporary menu models.
+- World map interaction lookups were changed from LINQ-style searches to explicit loops.
+- PC terminal rendering was moved out of the per-tile scan branch into a dedicated terminal pass to avoid repeated lookup work each frame.
+- Battle startup now reuses current runtime lead state instead of rebuilding separate participant selection state.
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+
+- Storage is still a minimal single-box model and does not yet support reorder, release, or party-box swap shortcuts.
+- Party management sets the lead creature, but there is not yet a separate field command for changing the active creature outside lead order.
+- Recovery currently uses a simple full-heal return rule and does not yet have a richer center/NPC presentation flow.

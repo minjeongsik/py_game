@@ -1,0 +1,43 @@
+Summary
+- Implemented the first real capture loop on the new foundation: `World -> wild encounter -> BattleState -> Capture / Win / Run -> World`.
+- Added runtime party handling for captured creatures using the existing `Party` model.
+- Continued improving battle readability and overworld character/world presentation so the prototype feels more like a monster-catching JRPG slice.
+
+Files changed
+- `Domain/Party/Party.cs`
+- `GameFlow/States/Battle/BattleState.cs`
+- `GameFlow/States/World/WorldState.cs`
+
+Capture flow now supported
+- Wild battles now offer `WIN`, `CAPTURE`, and `RUN`
+- `CAPTURE` attempts a simple readable success roll based on a starter chance model
+- On capture success, the encountered creature is cloned into runtime state and added to the player party
+- Party capacity now uses the current party model with a max size of 6
+- If the party is full, capture is blocked with a clear message instead of introducing a storage system yet
+- Battle results now stay on screen until the player confirms and then return cleanly to the world
+
+Battle presentation improvements
+- Reworked the battle state from a generic placeholder flow into a clearer encounter screen
+- Added a proper action menu with `WIN / CAPTURE / RUN`
+- Added clearer encounter message and result feedback handling
+- Improved visual framing for creature info, menu placement, and result text
+- Added simple species-colored encounter silhouettes so wild creatures read less generically
+
+Character/map/world presentation improvements
+- Added a small party status panel to the world HUD for better runtime identity
+- Improved player sprite readability with backpack/facing details
+- Kept NPC and player silhouettes in the same retro placeholder language while making the player read more distinctly
+- Preserved the improved starter town/route layout and kept it aligned with the capture gameplay loop
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- Capture uses a deliberately simple starter success model and is not yet tuned or data-driven.
+- There is still no storage/PC system; when the party is full, capture is blocked and reported to the player.
+- Battle still does not include HP, moves, damage, or longer turn flow yet; it remains a minimal vertical slice focused on encounter/capture structure.

@@ -1,0 +1,51 @@
+Summary
+- Implemented the first real party management loop with a dedicated `Party` screen opened from the overworld.
+- Added a minimal runtime storage/PC foundation so captures beyond the 6-party cap now go to storage instead of failing.
+- Added a simple storage inspection path from the party screen and kept the UI language aligned with the current retro handheld presentation.
+
+Files changed
+- `Domain/Party/CreatureStorage.cs`
+- `Domain/Party/Party.cs`
+- `GameFlow/GameSession.cs`
+- `GameFlow/GameSessionFactory.cs`
+- `GameFlow/StateManager/GameStateId.cs`
+- `GameFlow/States/Party/PartyState.cs`
+- `GameFlow/States/Storage/StorageState.cs`
+- `GameFlow/States/Battle/BattleState.cs`
+- `GameFlow/States/World/WorldState.cs`
+- `Core/Game1.cs`
+
+Party flow now supported
+- Press `P` in the overworld to open the Party screen
+- View the current party in slot order
+- Move selection with `Up/Down`
+- Press `Enter` to toggle a lightweight detail summary
+- Press `R` or `Tab` from Party to inspect Storage
+- Press `Esc` to return cleanly to the overworld
+
+Storage/PC flow now supported
+- Runtime storage now exists as a simple single-box creature list
+- When capture succeeds and the party has room, the creature joins the party
+- When capture succeeds and the party is full, the creature is sent to storage instead of being blocked
+- Storage contents can be inspected from the Party screen through the new Storage screen
+- Storage currently supports viewing only; no transfer/reorder/release actions were added in this task
+
+Presentation/UI improvements
+- Added dedicated Party and Storage screens with panel framing consistent with the current title/world/dialogue/battle style
+- Added lightweight creature portrait treatments for party and storage lists
+- Added a cleaner summary/detail panel for the selected creature
+- Improved overworld HUD messaging so party/storage status is visible from the field
+- Added a small PC-like environmental marker in the starter town to support the storage fantasy without introducing a full PC interaction system yet
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- Storage is currently a minimal single-box runtime list with no move/swap/release workflow yet.
+- Party detail only shows the small set of fields currently available in runtime data.
+- There is not yet a dedicated in-world PC interaction flow; storage is inspected through the Party screen for now.

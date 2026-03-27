@@ -1,0 +1,21 @@
+Summary
+- Extracted only the pause menu update/input logic from `Game1.cs` into `Core/States/PauseMenuState.cs`.
+- Kept `Game1.cs` as the orchestration root and delegated PauseMenu updates through the existing state registry.
+- Preserved current behavior for `Resume`, `Save`, `Title`, `Esc`, and menu navigation.
+
+Files changed
+- Game1.cs
+- Core/GameStateContext.cs
+- Core/States/PauseMenuState.cs
+
+Build command run
+- dotnet build PyGame.sln
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- `GameStateContext` now carries both title-related and pause-related callbacks/state, which is acceptable for this incremental step but may be worth narrowing later if more states are extracted.
+- `WorldExploration` and `Battle` still use direct `Game1.cs` update methods and were intentionally left unchanged in this task.

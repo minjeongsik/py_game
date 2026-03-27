@@ -1,0 +1,35 @@
+Root cause
+
+플레이어에게 보이는 UI와 상태 문구가 영어 중심이었고, 일부 한국어 치환 작업 중 문자열 인코딩이 깨져 여러 상태 파일에서 텍스트가 손상된 상태였습니다.
+
+Files changed
+
+- E:\min\job\ai\py_game\Core\Game1.cs
+- E:\min\job\ai\py_game\GameFlow\GameSession.cs
+- E:\min\job\ai\py_game\GameFlow\GameSessionFactory.cs
+- E:\min\job\ai\py_game\GameFlow\States\Title\TitleState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Pause\PauseState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Dialogue\DialogueState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Bag\BagState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Shop\ShopState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Party\PartyState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Storage\StorageState.cs
+- E:\min\job\ai\py_game\GameFlow\States\World\WorldState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Battle\BattleState.cs
+- E:\min\job\ai\py_game\docs\work_reports\2026-03-27_korean-localization_report.txt
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues, if any
+
+- 내부 식별자, 타입 ID, 상태 ID 같은 유지보수용 코드 식별자는 그대로 영어를 유지했습니다.
+- 콘솔 출력에서는 PowerShell 인코딩 영향으로 한글이 깨져 보일 수 있었지만, 실제 소스는 빌드 기준으로 정상입니다.
+- GUI를 직접 조작하는 전체 플레이 QA는 이 환경에서 자동 검증하지 못했고, 빌드와 코드 경로 기준으로 한국어 기본 UI를 확인했습니다.

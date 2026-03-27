@@ -1,0 +1,159 @@
+{
+  "maps": [
+    {
+      "id": "new_bark_town",
+      "name": "새싹 마을",
+      "tileSize": 32,
+      "spawnX": 3,
+      "spawnY": 10,
+      "recoveryX": 4,
+      "recoveryY": 4,
+      "rows": [
+        "TTTTTTTTTTTTTTTTTTTTTT",
+        "T........TT....ggggg.T",
+        "T.####...TT....ggggg.T",
+        "T.#==....TT....ggggg.T",
+        "T.#==....TT....ggggg.T",
+        "T.####...TT....ggggg.T",
+        "T...===......T.......T",
+        "T...=........T.......T",
+        "T...=....===.........T",
+        "T...======.=.........T",
+        "T........=.=.........T",
+        "T........===.........T",
+        "T....................T",
+        "TTTTTTTTTTTTTTTTTTTTTT"
+      ],
+      "warps": [],
+      "npcs": [
+        { "npcId": "guide_npc", "x": 8, "y": 8 },
+        { "npcId": "elder_npc", "x": 5, "y": 10 },
+        { "npcId": "healer_npc", "x": 4, "y": 3 },
+        { "npcId": "shopkeeper_npc", "x": 7, "y": 3 },
+        { "npcId": "route_scout", "x": 15, "y": 9, "facingX": -1, "facingY": 0, "sightRange": 4 }
+      ],
+      "pcTerminals": [
+        { "x": 5, "y": 4, "label": "집 PC" }
+      ],
+      "encounters": [
+        { "creatureId": "embercub", "minLevel": 2, "maxLevel": 4 },
+        { "creatureId": "sproutle", "minLevel": 2, "maxLevel": 3 },
+        { "creatureId": "brookit", "minLevel": 2, "maxLevel": 4 }
+      ]
+    }
+  ],
+  "species": [
+    { "id": "sproutle", "name": "새싹몬", "primaryTypeId": "leaf", "moveIds": ["tackle", "leaf_tap", "vine_slap"] },
+    { "id": "embercub", "name": "불곰치", "primaryTypeId": "flame", "moveIds": ["tackle", "ember_nip", "cinder_dash"] },
+    { "id": "brookit", "name": "물방울이", "primaryTypeId": "wave", "moveIds": ["tackle", "splash_jet", "bubble_pop"] }
+  ],
+  "npcs": [
+    {
+      "id": "guide_npc",
+      "name": "안내인",
+      "dialogueLines": [
+        "새 기준 세계에 온 걸 환영해.",
+        "사람 앞에서 엔터를 누르면 말을 걸 수 있어.",
+        "동쪽 길의 정찰원 린을 이기고 돌아와."
+      ],
+      "conditionalDialogueFlag": "trainer_route_scout_defeated",
+      "conditionalDialogueLines": [
+        "정찰원 린을 이겼구나.",
+        "이제 동쪽 길이 제대로 열린 셈이야.",
+        "준비되면 더 앞으로 나아가 봐."
+      ],
+      "grantsFlagOnTalk": "objective_route_challenge",
+      "rewardRequiredFlag": "trainer_route_scout_defeated",
+      "rewardFlagOnTalk": "milestone_route_mark_claimed",
+      "rewardMoney": 120,
+      "rewardBadgeCount": 1,
+      "rewardItemId": "potion",
+      "rewardItemQuantity": 1,
+      "rewardDialogueLines": [
+        "루트 마크를 받았어.",
+        "상금 120원과 상처약 하나를 챙겨 가."
+      ],
+      "visualStyle": "guide",
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "elder_npc",
+      "name": "장로",
+      "dialogueLines": [
+        "이 마을은 작은 길로 이어진단다.",
+        "나무가 안전한 길의 경계를 알려 주지.",
+        "풀이 무성한 곳엔 몬스터가 숨어 있어."
+      ],
+      "conditionalDialogueFlag": "trainer_route_scout_defeated",
+      "conditionalDialogueLines": [
+        "길목의 정찰원은 이미 물러났단다.",
+        "이제 더 동쪽으로 가도 되겠구나."
+      ],
+      "visualStyle": "elder",
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "healer_npc",
+      "name": "미라 간호사",
+      "dialogueLines": [
+        "파티가 많이 지쳐 보이네.",
+        "잠깐 쉬고 싶을 때는 언제든 찾아와."
+      ],
+      "visualStyle": "healer",
+      "healsParty": true,
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "shopkeeper_npc",
+      "name": "상점주인 레아",
+      "dialogueLines": [
+        "길에 나갈 준비물이 필요하니?",
+        "기본 물건은 늘 준비해 두고 있단다."
+      ],
+      "visualStyle": "shopkeeper",
+      "opensShop": true,
+      "shopItemIds": ["potion", "capture-sphere"],
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "route_scout",
+      "name": "정찰원 린",
+      "dialogueLines": [
+        "안내인이 아직 이쪽으로 보내지 않았어."
+      ],
+      "conditionalDialogueFlag": "trainer_route_scout_defeated",
+      "conditionalDialogueLines": [
+        "넌 이미 이 길에서 실력을 보여 줬어."
+      ],
+      "visualStyle": "scout",
+      "startsTrainerBattle": true,
+      "trainerDefeatedFlag": "trainer_route_scout_defeated",
+      "trainerRequiredFlag": "objective_route_challenge",
+      "trainerVictoryFlag": "objective_route_cleared",
+      "trainerNoticeText": "정찰원 린이 길목에서 너를 발견했다!",
+      "trainerCreatureId": "brookit",
+      "trainerCreatureLevel": 6
+    }
+  ],
+  "moves": [
+    { "id": "tackle", "name": "몸통박치기", "typeId": "neutral", "power": 5 },
+    { "id": "leaf_tap", "name": "잎치기", "typeId": "leaf", "power": 6 },
+    { "id": "vine_slap", "name": "덩굴채찍", "typeId": "leaf", "power": 7 },
+    { "id": "ember_nip", "name": "불꽃물기", "typeId": "flame", "power": 6 },
+    { "id": "cinder_dash", "name": "불씨돌진", "typeId": "flame", "power": 7 },
+    { "id": "splash_jet", "name": "물보라분사", "typeId": "wave", "power": 6 },
+    { "id": "bubble_pop", "name": "방울탄", "typeId": "wave", "power": 7 }
+  ],
+  "items": [
+    { "id": "potion", "name": "상처약", "category": "healing", "price": 60, "healAmount": 12 },
+    { "id": "capture-sphere", "name": "포획구", "category": "capture", "price": 80, "healAmount": 0 }
+  ]
+}

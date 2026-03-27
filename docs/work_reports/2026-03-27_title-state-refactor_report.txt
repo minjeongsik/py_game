@@ -1,0 +1,55 @@
+작업명
+- Title 상태 업데이트 로직 분리
+
+작업 요청 요약
+- Game1.cs에 있던 타이틀 메뉴 입력/액션 로직을 Core/States/TitleState.cs로 이동
+- 기존 상태 인프라를 사용해서 Game1.cs가 Title 상태 업데이트를 위임하도록 연결
+- 다른 시스템은 건드리지 않고 현재 동작을 그대로 유지
+
+변경 이유
+- Game1.cs가 타이틀 상태 로직을 직접 처리하고 있어서 상태 클래스가 실질적으로 비어 있었음
+- 작은 단위로 상태별 로직을 분리해 이후 World, Battle, Pause 리팩터링을 이어가기 쉽게 만들 필요가 있었음
+
+실제 변경 내용
+- Core/States/TitleState.cs
+  - 기존 UpdateTitle()에 있던 입력 처리와 메뉴 액션 실행 로직을 이동
+  - Up/W, Down/S, Enter 입력에 따른 선택 이동 및 New Game / Continue / Exit 동작 유지
+- Game1.cs
+  - Title 상태일 때 직접 UpdateTitle()을 호출하지 않고 상태 레지스트리를 통해 TitleState.Update(...)를 호출하도록 변경
+  - 상태에 넘길 GameStateContext 생성 메서드 추가
+  - 기존 UpdateTitle() 메서드 제거
+- Core/GameStateContext.cs
+  - TitleState가 기존 동작을 그대로 수행할 수 있도록 최소 범위의 콜백/값 추가
+  - title selection 읽기/쓰기
+  - confirm 사운드 실행
+  - 새 게임 시작
+  - 이어하기 실행
+  - HUD 메시지 변경
+  - 게임 종료
+
+변경 파일
+- Game1.cs
+- Core/GameStateContext.cs
+- Core/States/TitleState.cs
+
+동작 보존 포인트
+- 타이틀 메뉴 선택 이동 방식 유지
+- Enter 입력 시 처리 순서 유지
+- Continue 실패 시 "NO SAVE DATA FOUND" 메시지 유지
+- New Game, Continue, Exit 실행 흐름 유지
+
+검증
+- 실행 명령: dotnet build PyGame.sln
+- 결과: 성공
+- 경고: 0
+- 오류: 0
+
+설계 관점 메모
+- 이번 변경은 상태 인프라를 실제로 쓰기 시작한 첫 단계에 가까움
+- 다만 GameStateContext가 콜백 중심으로 조금 두꺼워졌기 때문에, 다음 리팩터링에서는 상태별 전용 컨텍스트나 더 작은 서비스 단위로 분리할지 검토할 수 있음
+- 현재는 "동작 보존"과 "최소 변경"이 우선이라 구조 확장은 의도적으로 최소화했음
+
+다음에 ChatGPT에 물어보면 좋은 질문
+- GameStateContext에 콜백이 늘어나는 방향이 적절한지
+- 다음 분리 대상으로 World / Battle / Pause 중 무엇이 가장 안전한지
+- 상태별 책임 분리를 진행할 때 Game1.cs에 남겨야 할 최소 책임은 무엇인지

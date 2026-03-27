@@ -1,0 +1,66 @@
+Summary
+
+Added the first minimal move-based battle layer, a small readable three-type advantage chart, and an in-world healer interaction. Battles now use species move lists instead of one generic attack, type advantage feedback appears in combat text, and interacting with the healer by the home wall restores the full party without leaving the world loop.
+
+Files changed
+
+- Content/Definitions/game-definitions.json
+- Domain/Battle/MoveDefinition.cs
+- Domain/Battle/TypeChart.cs
+- Domain/Creatures/SpeciesDefinition.cs
+- Domain/Npc/NpcDefinition.cs
+- Domain/Party/Party.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/World/WorldState.cs
+- Infrastructure/Content/GameDefinitions.cs
+- Infrastructure/Content/GameDefinitionLoader.cs
+
+Move-based battle flow now supported
+
+- Each species now has a small move list loaded from data.
+- Battle uses a FIGHT flow that opens a move panel instead of a single generic attack.
+- Sproutle, Embercub, and Brookit each use 2-3 simple starter moves.
+- Enemy turns now also pick from their own move list.
+
+Light type system now supported
+
+- Added a small three-type chart: leaf > wave, wave > flame, flame > leaf.
+- Weak matchups use a reduced damage modifier.
+- Neutral matchups stay at standard damage.
+- Battle feedback now reports whether a hit landed hard or was not very effective.
+
+Healer/recovery interaction now supported
+
+- Added Nurse Mira near the home wall as a healer interaction point.
+- Interacting with the healer restores the full party immediately in the overworld.
+- The recovery tile in front of the healer is now more clearly marked, matching the defeat return point.
+
+Presentation/refinement improvements
+
+- Battle now has a dedicated move panel, clearer creature cards, type labels, and stronger result text.
+- Wild creatures gained more species-specific placeholder silhouettes and a third starter wild species for visual variety.
+- The world healing area is more readable with a recovery mark and a distinct healer palette.
+- UI wording was tightened to better explain the current state and action options.
+
+Optimization-minded improvements
+
+- Battle caches resolved move arrays per active creature/encounter instead of rebuilding them every frame.
+- The type chart is a small static rules table with no runtime data loading overhead.
+- Healer interaction reuses the existing NPC interaction path instead of introducing a separate system.
+- Party healing reuses the domain party object directly through a single heal method.
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+
+- Move data is still intentionally minimal and does not yet include accuracy, PP, or status effects.
+- Type coverage is intentionally tiny and currently tuned only for the starter prototype species.
+- The healer interaction is immediate and readable, but it does not yet have a fuller center/cutscene presentation loop.

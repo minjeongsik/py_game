@@ -1,0 +1,42 @@
+Summary
+- Upgraded battle from an instant-resolution menu into a basic HP-based turn loop with `ATTACK / CAPTURE / RUN`.
+- Added alternating turn flow where attack and failed capture attempts can trigger a simple enemy counterattack.
+- Fixed the starter town layout so the PC marker area is no longer blocked behind a wall.
+
+Files changed
+- `Domain/Creatures/Creature.cs`
+- `GameFlow/States/Battle/BattleState.cs`
+- `GameFlow/States/World/WorldState.cs`
+- `Infrastructure/Content/GameDefinitionLoader.cs`
+- `Content/Definitions/game-definitions.json`
+
+Basic battle flow now supported
+- Wild encounters now open a real HP-based battle screen
+- `ATTACK` deals simple starter damage based on level and can defeat the wild creature
+- If the wild creature survives an attack, it performs a simple return hit
+- `CAPTURE` still works and now uses the target's current HP to improve capture odds
+- If capture fails, the wild creature can counterattack
+- `RUN` exits the battle cleanly
+- If the wild creature reaches 0 HP, the player wins and returns to the world
+- If the player creature reaches 0 HP, a minimal retreat/faint outcome occurs and the creature is restored to a safe partial HP value
+
+Battle presentation improvements
+- Added separate player and wild creature status panels
+- Added readable HP bars and numeric HP values for both sides
+- Renamed the menu to `ATTACK / CAPTURE / RUN` to match the new turn flow
+- Improved encounter/result text so the player can follow turn outcomes and battle resolution more clearly
+- Kept the visuals lightweight but more recognizably creature-battle oriented
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+- This is still a single-active-creature battle model with no party switching.
+- Damage and capture formulas are intentionally simple starter rules and are not yet data-driven.
+- There is still no move list system, elemental typing, or status effects.
+- The PC area is now reachable in the map layout, but there is still no dedicated in-world PC interaction flow beyond the party/storage menu path.

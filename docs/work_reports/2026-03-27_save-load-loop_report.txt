@@ -1,0 +1,74 @@
+Summary
+
+단일 세이브 기반 저장/이어하기 루프를 추가했습니다. 이제 일시정지 화면에서 저장할 수 있고, 타이틀 화면에서는 저장 데이터가 있을 때만 이어하기가 나타납니다. 이어하기는 월드 위치만이 아니라 파티/보관함/인벤토리/소지금/선두/진행 플래그/트레이너 격파 상태/마크 진행을 함께 복원합니다.
+
+Files changed
+
+- E:\min\job\ai\py_game\PyGame.csproj
+- E:\min\job\ai\py_game\Core\Game1.cs
+- E:\min\job\ai\py_game\Domain\Inventory\InventoryBag.cs
+- E:\min\job\ai\py_game\Domain\Party\CreatureStorage.cs
+- E:\min\job\ai\py_game\Domain\Party\Party.cs
+- E:\min\job\ai\py_game\Domain\Progression\GameProgression.cs
+- E:\min\job\ai\py_game\GameFlow\StateManager\GameContext.cs
+- E:\min\job\ai\py_game\GameFlow\States\Pause\PauseState.cs
+- E:\min\job\ai\py_game\GameFlow\States\Title\TitleState.cs
+- E:\min\job\ai\py_game\Infrastructure\Save\SaveGameService.cs
+- E:\min\job\ai\py_game\docs\work_reports\2026-03-27_save-load-loop_report.txt
+
+Save/load flow now supported
+
+- 일시정지에서 `저장하기` 가능
+- 타이틀에서 저장 데이터가 있을 때만 `이어하기` 표시
+- 저장 데이터가 없거나 손상되면 한국어 안내 문구 표시
+- 이어하기 성공 시 월드로 바로 복귀
+
+Persisted runtime state coverage
+
+- 현재 맵 ID
+- 플레이어 타일 위치
+- 플레이어 방향
+- 회복 지점 맵/좌표
+- 파티 전체 상태와 현재 선두 인덱스
+- 보관함 전체 상태
+- 인벤토리 수량
+- 소지금
+- 진행 플래그
+- 마크 수치
+
+Presentation/refinement improvements
+
+- 타이틀 화면에 저장 데이터 유무에 따른 문구를 추가했습니다.
+- 일시정지 화면에 저장 전용 항목과 저장 결과 피드백을 추가했습니다.
+- 저장/불러오기 실패 문구를 한국어로 통일했습니다.
+- 이어하기와 새 게임의 분기 메시지를 플레이어가 바로 이해할 수 있게 정리했습니다.
+
+Optimization-minded improvements
+
+- 세이브 페이로드는 명시적 DTO로 한 번만 매핑하도록 구성했습니다.
+- 불러오기는 콘텐츠 전체를 재구성하지 않고 세션만 직접 복원합니다.
+- 파티/보관함/인벤토리는 복원용 메서드로 리스트를 한 번에 재구성합니다.
+
+Practical gameplay QA performed
+
+- 실제 `SaveGameService`를 사용해 저장/불러오기 라운드트립을 실행했습니다.
+- 저장 후 다시 불러와서 맵, 위치, 방향, 소지금, 파티 수, 선두, 보관함 수, 아이템 수량, 진행 플래그, 마크가 복원되는지 확인했습니다.
+- 생성된 실제 저장 파일 내용을 확인해 핵심 필드가 기록되는 것을 검증했습니다.
+- 타이틀과 일시정지의 한국어 저장/이어하기 문구가 실제 소스 경로에 반영됐는지 확인했습니다.
+- QA용으로 만든 로컬 저장 파일은 검증 후 삭제했습니다.
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+
+- 이 환경에서는 게임 창을 직접 띄워 사람 눈으로 끝까지 클릭하는 GUI 플레이테스트는 수행하지 못했습니다.
+- 따라서 실제 화면에서의 한글 줄바꿈, 패널 여백, 버튼 감각은 소스 검토와 저장 라운드트립 검증까지 완료된 상태입니다.
+- 현재는 단일 세이브만 지원하며, 멀티 슬롯/저장 시간 표시 같은 확장 UX는 아직 없습니다.

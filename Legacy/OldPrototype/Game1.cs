@@ -3,6 +3,7 @@ using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PyGame.Battle;
 using PyGame.Core;
+using PyGame.Core.States;
 using PyGame.Creatures;
 using PyGame.Data;
 using PyGame.UI;
@@ -18,6 +19,7 @@ public sealed class Game1 : Microsoft.Xna.Framework.Game
 
     private readonly InputState _input = new();
     private readonly GameStateManager _state = new();
+    private readonly GameStateRegistry _stateRegistry = new([new TitleState(), new WorldExplorationState(), new PauseMenuState(), new EncounterOverlayState()]);
     private readonly Camera2D _camera = new();
     private readonly EncounterService _encounterService = new();
     private readonly SaveGameService _saveService = new();
@@ -81,82 +83,21 @@ public sealed class Game1 : Microsoft.Xna.Framework.Game
         switch (_state.CurrentState)
         {
             case GameStateType.Title:
-                UpdateTitle();
+                _stateRegistry.Get(GameStateType.Title).Update(gameTime, CreateGameStateContext());
                 break;
             case GameStateType.WorldExploration:
-                UpdateWorld(gameTime);
+                _stateRegistry.Get(GameStateType.WorldExploration).Update(gameTime, CreateGameStateContext());
                 break;
             case GameStateType.Battle:
                 UpdateBattle();
                 break;
             case GameStateType.PauseMenu:
-                UpdatePause();
+                _stateRegistry.Get(GameStateType.PauseMenu).Update(gameTime, CreateGameStateContext());
                 break;
         }
 
         UpdateWindowTitle();
         base.Update(gameTime);
-    }
-
-    private void UpdateTitle()
-    {
-        if (_input.WasPressed(Keys.Up) || _input.WasPressed(Keys.W)) _titleSelection = (_titleSelection + 2) % 3;
-        if (_input.WasPressed(Keys.Down) || _input.WasPressed(Keys.S)) _titleSelection = (_titleSelection + 1) % 3;
-        if (!_input.WasPressed(Keys.Enter))
-        {
-            return;
-        }
-
-        if (_titleSelection == 0)
-        {
-            _audio.PlayConfirm();
-            StartNewGame();
-            return;
-        }
-
-        if (_titleSelection == 1)
-        {
-            _audio.PlayConfirm();
-            if (!ContinueGame())
-            {
-                _hudMessage = "NO SAVE DATA FOUND";
-            }
-
-            return;
-        }
-
-        _audio.PlayConfirm();
-        Exit();
-    }
-
-    private void UpdateWorld(GameTime gameTime)
-    {
-        if (_input.WasPressed(Keys.Escape))
-        {
-            _pauseSelection = 0;
-            _state.ChangeState(GameStateType.PauseMenu);
-            return;
-        }
-
-        var previous = _session.PlayerPosition;
-
-        _playerProxy.WorldPosition = _session.PlayerPosition;
-        _playerProxy.Update(gameTime, _input, _activeMap);
-        _session.PlayerPosition = _playerProxy.WorldPosition;
-
-        _camera.Follow(_session.PlayerPosition, GraphicsDevice.Viewport, _activeMap.PixelWidth, _activeMap.PixelHeight);
-
-        if (_session.PlayerPosition != previous)
-        {
-            HandlePortals();
-            HandleEncounters(gameTime);
-        }
-
-        if (_input.WasPressed(Keys.F5))
-        {
-            SaveSession();
-            _hudMessage = "GAME SAVED";
-        }
     }
 
     private void UpdateBattle()
@@ -226,40 +167,6 @@ public sealed class Game1 : Microsoft.Xna.Framework.Game
         {
             EndBattleIfDone(_battle.UseItem(_battle.ItemSelection));
             _battle.MenuMode = BattleMenuMode.Root;
-        }
-    }
-
-    private void UpdatePause()
-    {
-        var options = new[] { "RESUME", "SAVE", "TITLE" };
-        if (_input.WasPressed(Keys.Up) || _input.WasPressed(Keys.W)) _pauseSelection = (_pauseSelection + options.Length - 1) % options.Length;
-        if (_input.WasPressed(Keys.Down) || _input.WasPressed(Keys.S)) _pauseSelection = (_pauseSelection + 1) % options.Length;
-
-        if (_input.WasPressed(Keys.Escape))
-        {
-            _state.ChangeState(GameStateType.WorldExploration);
-            return;
-        }
-
-        if (!_input.WasPressed(Keys.Enter))
-        {
-            return;
-        }
-
-        switch (_pauseSelection)
-        {
-            case 0:
-                _state.ChangeState(GameStateType.WorldExploration);
-                break;
-            case 1:
-                _audio.PlayConfirm();
-                SaveSession();
-                _hudMessage = "GAME SAVED";
-                _state.ChangeState(GameStateType.WorldExploration);
-                break;
-            case 2:
-                _state.ChangeState(GameStateType.Title);
-                break;
         }
     }
 
@@ -534,5 +441,41 @@ public sealed class Game1 : Microsoft.Xna.Framework.Game
     private void UpdateWindowTitle()
     {
         Window.Title = $"Aether Trail | {_state.CurrentState} | Zone {_activeMap.CurrentZoneName} | Party {_session.Party.Count} | Vitals {_session.ActiveCreature.CurrentVitality}/{_session.ActiveCreature.MaxVitality}";
+    }
+
+    private void EnterPauseMenu()
+    {
+        _pauseSelection = 0;
+        _state.ChangeState(GameStateType.PauseMenu);
+    }
+
+    private GameStateContext CreateGameStateContext()
+    {
+        return new GameStateContext
+        {
+            Input = _input,
+            StateManager = _state,
+            Camera = _camera,
+            WorldMap = _activeMap,
+            Player = _playerProxy,
+            EncounterService = _encounterService,
+            SaveGameService = _saveService,
+            GetViewport = () => GraphicsDevice.Viewport,
+            TitleSelection = _titleSelection,
+            SetTitleSelection = selection => _titleSelection = selection,
+            PlayConfirm = _audio.PlayConfirm,
+            StartNewGame = StartNewGame,
+            ContinueGame = ContinueGame,
+            SetHudMessage = message => _hudMessage = message,
+            ExitGame = Exit,
+            PauseSelection = _pauseSelection,
+            SetPauseSelection = selection => _pauseSelection = selection,
+            SaveSession = SaveSession,
+            PlayerPosition = _session.PlayerPosition,
+            SetPlayerPosition = position => _session.PlayerPosition = position,
+            EnterPauseMenu = EnterPauseMenu,
+            HandlePortals = HandlePortals,
+            HandleEncounters = HandleEncounters
+        };
     }
 }
