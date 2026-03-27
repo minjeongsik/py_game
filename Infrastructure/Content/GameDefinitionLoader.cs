@@ -42,38 +42,44 @@ public static class GameDefinitionLoader
                 Id = "new_bark_town",
                 Name = "새싹마을",
                 SpawnX = 4,
-                SpawnY = 12,
+                SpawnY = 14,
                 RecoveryX = 8,
                 RecoveryY = 3,
                 Rows =
                 [
-                    "TTTTTTTTTTTTTTTTTTTTTTTTTT",
-                    "T..###...TT...gggg...TT..T",
-                    "T..#=#...TT...gggg...TT..T",
-                    "T..###.=====..gggg...TT..T",
-                    "T......=..==.............T",
-                    "T..T...=.........TTT.....T",
-                    "T..T.=====..TT...TTT.....T",
-                    "T..T.....=..TT...........T",
-                    "T......===.......gggg....T",
-                    "T..###...=..T...gggg..T..T",
-                    "T..#=#...=..T...gggg..T..T",
-                    "T..###.====.T....ggg..T..T",
-                    "T..........=.TTTTTT..T...T",
-                    "T..gggg...=.......g..T...T",
-                    "T..gggg...===....gg..T...T",
-                    "T..gggg..........gg......T",
-                    "TTTTTTTTTTTTTTTTTTTTTTTTTT"
+                    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+                    "T..###....TT....gggg....TT.......T",
+                    "T..#=#....TT....gggg....TT..gg...T",
+                    "T..###..=======.gggg....TT..gg...T",
+                    "T......=....==..........TT.......T",
+                    "T..T...=................TT.......T",
+                    "T..T.======..TT....TTT...........T",
+                    "T..T.....=...TT....TTT....gggg...T",
+                    "T......====..............gggg....T",
+                    "T..###....=..TT....T.....gggg....T",
+                    "T..#=#....=..TT....T.....gggg....T",
+                    "T..###..=====TT....T.............T",
+                    "T.........=.........TTTTT........T",
+                    "T..gggg...=...gggg..TTTT..gggg...T",
+                    "T..gggg...====gggg..........gg...T",
+                    "T..gggg......=gggg....TTT...gg...T",
+                    "T.......TT...=.......TTTT...==...T",
+                    "T.......TT...=====..........==...T",
+                    "T............g..g....TT....ggg...T",
+                    "T...gggg.....g..g....TT....ggg...T",
+                    "T...gggg..............TT........TT",
+                    "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
                 ],
                 Npcs =
                 [
-                    new NpcPlacement { NpcId = "guide_npc", X = 8, Y = 8 },
-                    new NpcPlacement { NpcId = "elder_npc", X = 12, Y = 12 },
+                    new NpcPlacement { NpcId = "guide_npc", X = 9, Y = 9 },
+                    new NpcPlacement { NpcId = "elder_npc", X = 13, Y = 14 },
                     new NpcPlacement { NpcId = "healer_npc", X = 7, Y = 3 },
                     new NpcPlacement { NpcId = "shopkeeper_npc", X = 7, Y = 10 },
-                    new NpcPlacement { NpcId = "town_child", X = 5, Y = 13 },
-                    new NpcPlacement { NpcId = "grove_watcher", X = 23, Y = 14, FacingX = -1, FacingY = 0 },
-                    new NpcPlacement { NpcId = "route_scout", X = 18, Y = 8, FacingX = -1, FacingY = 0, SightRange = 4 }
+                    new NpcPlacement { NpcId = "town_child", X = 4, Y = 16 },
+                    new NpcPlacement { NpcId = "grove_watcher", X = 29, Y = 18, FacingX = -1, FacingY = 0 },
+                    new NpcPlacement { NpcId = "route_scout", X = 20, Y = 8, FacingX = -1, FacingY = 0, SightRange = 4 },
+                    new NpcPlacement { NpcId = "forest_rookie", X = 27, Y = 18, FacingX = -1, FacingY = 0, SightRange = 3 }
                 ],
                 PcTerminals =
                 [
@@ -82,7 +88,8 @@ public static class GameDefinitionLoader
                 Pickups =
                 [
                     new WorldPickup { Id = "town_potion_pickup", X = 11, Y = 4, ItemId = "potion", Quantity = 1, CollectedFlag = "pickup_town_potion" },
-                    new WorldPickup { Id = "grove_sphere_pickup", X = 20, Y = 14, ItemId = "capture-sphere", Quantity = 1, CollectedFlag = "pickup_grove_sphere" }
+                    new WorldPickup { Id = "route_potion_pickup", X = 24, Y = 11, ItemId = "potion", Quantity = 1, CollectedFlag = "pickup_route_potion" },
+                    new WorldPickup { Id = "grove_sphere_pickup", X = 30, Y = 18, ItemId = "capture-sphere", Quantity = 1, CollectedFlag = "pickup_grove_sphere" }
                 ],
                 Encounters =
                 [
@@ -200,8 +207,8 @@ public static class GameDefinitionLoader
                 Name = "마을아이",
                 DialogueLines =
                 [
-                    "길 끝 숲 입구에 반짝이는 물건이 하나 떨어져 있었어.",
-                    "풀숲 옆 좁은 길을 잘 보면 보여!"
+                    "동쪽 길은 길지만, 광장에서 준비만 잘하면 무섭지 않아.",
+                    "숲 입구 쪽 반짝이는 물건은 꼭 챙겨!"
                 ],
                 VisualStyle = "guide"
             },
@@ -212,13 +219,13 @@ public static class GameDefinitionLoader
                 DialogueLines =
                 [
                     "여긴 바람숲 입구야.",
-                    "아직 작은 길이지만, 다음 지역으로 이어질 준비가 된 곳이지."
+                    "조금 더 넓어진 길 끝에 다음 지역으로 이어질 숲이 기다리고 있지."
                 ],
                 ConditionalDialogueFlag = "milestone_route_mark_claimed",
                 ConditionalDialogueLines =
                 [
-                    "마크까지 받았다면 이제 이 숲길도 겁나지 않겠군.",
-                    "준비가 되면 더 깊은 지역도 만들 수 있을 거야."
+                    "마크를 받았다면 이제 숲 입구를 지날 자격은 충분해.",
+                    "준비가 되면 더 안쪽 길도 만들 수 있을 거야."
                 ],
                 VisualStyle = "elder"
             },
@@ -243,6 +250,29 @@ public static class GameDefinitionLoader
                 TrainerNoticeText = "정찰원 리노가 길목에서 당신을 발견했다!",
                 TrainerCreatureId = "brookit",
                 TrainerCreatureLevel = 6
+            },
+            new NpcDefinition
+            {
+                Id = "forest_rookie",
+                Name = "숲길 연수생",
+                DialogueLines =
+                [
+                    "숲 입구는 겁먹지 않고 차근차근 보면 길이 보여.",
+                    "나와 한 번 겨뤄 보면 더 준비가 될 거야."
+                ],
+                ConditionalDialogueFlag = "trainer_forest_rookie_defeated",
+                ConditionalDialogueLines =
+                [
+                    "이제 숲길 바람도 견딜 만하지?",
+                    "다음 길은 더 넓어질 테니 대비해 둬."
+                ],
+                VisualStyle = "scout",
+                StartsTrainerBattle = true,
+                TrainerDefeatedFlag = "trainer_forest_rookie_defeated",
+                TrainerVictoryFlag = "objective_grove_cleared",
+                TrainerNoticeText = "숲길 연수생이 숲 입구에서 승부를 걸어왔다!",
+                TrainerCreatureId = "sproutle",
+                TrainerCreatureLevel = 5
             }
         };
 

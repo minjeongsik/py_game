@@ -5,10 +5,11 @@ namespace PyGame.Core.Camera;
 
 public sealed class Camera2D
 {
-    public Matrix CreateWorldTransform(Vector2 focusWorldPosition, Viewport viewport, Point worldPixelSize)
+    public Matrix CreateWorldTransform(Vector2 focusWorldPosition, Viewport viewport, Point worldPixelSize, Vector2? screenOffset = null)
     {
-        var targetX = (viewport.Width * 0.5f) - focusWorldPosition.X;
-        var targetY = (viewport.Height * 0.5f) - focusWorldPosition.Y;
+        var offset = screenOffset ?? Vector2.Zero;
+        var targetX = (viewport.Width * 0.5f) - focusWorldPosition.X + offset.X;
+        var targetY = (viewport.Height * 0.5f) - focusWorldPosition.Y + offset.Y;
 
         var minX = Math.Min(0f, viewport.Width - worldPixelSize.X);
         var minY = Math.Min(0f, viewport.Height - worldPixelSize.Y);

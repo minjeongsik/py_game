@@ -1,0 +1,26 @@
+Root cause
+
+- 월드 카메라는 이미 플레이어 추적형이었지만, 상단/하단 HUD가 너무 커서 실제 맵 가시 영역을 많이 가리고 있었습니다.
+- 그래서 체감 문제는 카메라 부재보다 상시 UI 과점유가 더 큰 원인이었습니다.
+
+Files changed
+
+- Core/Camera/Camera2D.cs
+- GameFlow/GameSession.cs
+- GameFlow/States/World/WorldState.cs
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues, if any
+
+- 월드 카메라에 상단 시야 확보용 오프셋을 추가했고, 상시 HUD를 더 얇은 2단 정보형으로 줄였습니다.
+- 이 환경에서는 실제 게임 창을 띄워 손으로 이동하면서 화면 체감을 직접 확인하는 GUI QA까지는 수행하지 못했습니다.
+- 구조상 다음 체감 개선은 `상태 메시지 길이 더 짧게 유지`, `상황별 HUD 자동 축소`, `전투/상점/파티 화면 패널 여백 통일` 순서가 적절합니다.

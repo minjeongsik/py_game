@@ -1,0 +1,33 @@
+Root cause
+
+- 첫 지역이 기능은 많아졌지만 실제 탐험 거리와 우회 동선이 짧아 여전히 작은 테스트 맵처럼 느껴졌습니다.
+- 전투 화면도 정보는 있었지만 메시지, 행동 선택, 전투 카드가 한눈에 정리되지 않아 게임다운 완성도가 부족했습니다.
+
+Files changed
+
+- Content/Definitions/game-definitions.json
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/World/WorldState.cs
+- Infrastructure/Content/GameDefinitionLoader.cs
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues, if any
+
+- Practical QA:
+  - JSON 실제 파싱 확인
+  - 확장된 맵의 모든 row 길이 일치 확인
+  - 시작 지점에서 healer, shop, PC, guide, elder, trainer 2명, pickup 3개까지의 도달 가능 거리 확인
+  - 전투 화면 한국어 문구와 핵심 행동 라벨 스캔 확인
+- 첫 지역 크기를 34x22로 키워 마을, 1번길, 바람숲 입구가 더 분리되게 만들었습니다.
+- 숲 입구 쪽에 `숲길 연수생` 트레이너와 추가 상처약 픽업을 넣어 동선 끝이 더 허전하지 않게 했습니다.
+- 전투 화면은 `배경 -> 몬스터 무대 -> 전투 카드 -> 메시지 박스 -> 행동 패널` 구조로 다시 정리했습니다.
+- 이 환경에서는 실제 게임 창을 보며 수동 플레이하는 GUI QA까지는 수행하지 못했습니다.

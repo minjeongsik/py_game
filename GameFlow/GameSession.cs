@@ -23,5 +23,5 @@ public sealed class GameSession
     public GameStateId ReturnState { get; set; } = GameStateId.World;
     public DialogueScene? ActiveDialogue { get; set; }
     public Encounter? ActiveEncounter { get; set; }
-    public string StatusMessage { get; set; } = "방향키나 WASD로 이동하고, Enter나 Space로 조사하세요.";
+    public string StatusMessage { get; set; } = "이동은 방향키, 조사는 Enter 또는 Space입니다.";
 }
