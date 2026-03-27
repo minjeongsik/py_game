@@ -40,39 +40,49 @@ public static class GameDefinitionLoader
             new WorldMap
             {
                 Id = "new_bark_town",
-                Name = "새싹 마을",
-                SpawnX = 3,
-                SpawnY = 10,
-                RecoveryX = 4,
-                RecoveryY = 4,
+                Name = "새싹마을",
+                SpawnX = 4,
+                SpawnY = 12,
+                RecoveryX = 8,
+                RecoveryY = 3,
                 Rows =
                 [
-                    "TTTTTTTTTTTTTTTTTTTTTT",
-                    "T........TT....ggggg.T",
-                    "T.####...TT....ggggg.T",
-                    "T.#==....TT....ggggg.T",
-                    "T.#==....TT....ggggg.T",
-                    "T.####...TT....ggggg.T",
-                    "T...===......T.......T",
-                    "T...=........T.......T",
-                    "T...=....===.........T",
-                    "T...======.=.........T",
-                    "T........=.=.........T",
-                    "T........===.........T",
-                    "T....................T",
-                    "TTTTTTTTTTTTTTTTTTTTTT"
+                    "TTTTTTTTTTTTTTTTTTTTTTTTTT",
+                    "T..###...TT...gggg...TT..T",
+                    "T..#=#...TT...gggg...TT..T",
+                    "T..###.=====..gggg...TT..T",
+                    "T......=..==.............T",
+                    "T..T...=.........TTT.....T",
+                    "T..T.=====..TT...TTT.....T",
+                    "T..T.....=..TT...........T",
+                    "T......===.......gggg....T",
+                    "T..###...=..T...gggg..T..T",
+                    "T..#=#...=..T...gggg..T..T",
+                    "T..###.====.T....ggg..T..T",
+                    "T..........=.TTTTTT..T...T",
+                    "T..gggg...=.......g..T...T",
+                    "T..gggg...===....gg..T...T",
+                    "T..gggg..........gg......T",
+                    "TTTTTTTTTTTTTTTTTTTTTTTTTT"
                 ],
                 Npcs =
                 [
                     new NpcPlacement { NpcId = "guide_npc", X = 8, Y = 8 },
-                    new NpcPlacement { NpcId = "elder_npc", X = 5, Y = 10 },
-                    new NpcPlacement { NpcId = "healer_npc", X = 4, Y = 3 },
-                    new NpcPlacement { NpcId = "shopkeeper_npc", X = 7, Y = 3 },
-                    new NpcPlacement { NpcId = "route_scout", X = 15, Y = 9, FacingX = -1, FacingY = 0, SightRange = 4 }
+                    new NpcPlacement { NpcId = "elder_npc", X = 12, Y = 12 },
+                    new NpcPlacement { NpcId = "healer_npc", X = 7, Y = 3 },
+                    new NpcPlacement { NpcId = "shopkeeper_npc", X = 7, Y = 10 },
+                    new NpcPlacement { NpcId = "town_child", X = 5, Y = 13 },
+                    new NpcPlacement { NpcId = "grove_watcher", X = 23, Y = 14, FacingX = -1, FacingY = 0 },
+                    new NpcPlacement { NpcId = "route_scout", X = 18, Y = 8, FacingX = -1, FacingY = 0, SightRange = 4 }
                 ],
                 PcTerminals =
                 [
-                    new PcTerminal { X = 5, Y = 4, Label = "집 PC" }
+                    new PcTerminal { X = 7, Y = 9, Label = "마을 PC" }
+                ],
+                Pickups =
+                [
+                    new WorldPickup { Id = "town_potion_pickup", X = 11, Y = 4, ItemId = "potion", Quantity = 1, CollectedFlag = "pickup_town_potion" },
+                    new WorldPickup { Id = "grove_sphere_pickup", X = 20, Y = 14, ItemId = "capture-sphere", Quantity = 1, CollectedFlag = "pickup_grove_sphere" }
                 ],
                 Encounters =
                 [
@@ -85,9 +95,9 @@ public static class GameDefinitionLoader
 
         var species = new[]
         {
-            new SpeciesDefinition { Id = "sproutle", Name = "새싹몬", PrimaryTypeId = "leaf", MoveIds = ["tackle", "leaf_tap", "vine_slap"] },
-            new SpeciesDefinition { Id = "embercub", Name = "불곰치", PrimaryTypeId = "flame", MoveIds = ["tackle", "ember_nip", "cinder_dash"] },
-            new SpeciesDefinition { Id = "brookit", Name = "물방울이", PrimaryTypeId = "wave", MoveIds = ["tackle", "splash_jet", "bubble_pop"] }
+            new SpeciesDefinition { Id = "sproutle", Name = "새싹몽", PrimaryTypeId = "leaf", MoveIds = ["tackle", "leaf_tap", "vine_slap"] },
+            new SpeciesDefinition { Id = "embercub", Name = "불꼬미", PrimaryTypeId = "flame", MoveIds = ["tackle", "ember_nip", "cinder_dash"] },
+            new SpeciesDefinition { Id = "brookit", Name = "물갑돌이", PrimaryTypeId = "wave", MoveIds = ["tackle", "splash_jet", "bubble_pop"] }
         };
 
         var moves = new[]
@@ -98,7 +108,7 @@ public static class GameDefinitionLoader
             new MoveDefinition { Id = "ember_nip", Name = "불꽃물기", TypeId = "flame", Power = 6 },
             new MoveDefinition { Id = "cinder_dash", Name = "불씨돌진", TypeId = "flame", Power = 7 },
             new MoveDefinition { Id = "splash_jet", Name = "물보라분사", TypeId = "wave", Power = 6 },
-            new MoveDefinition { Id = "bubble_pop", Name = "방울탄", TypeId = "wave", Power = 7 }
+            new MoveDefinition { Id = "bubble_pop", Name = "방울파열", TypeId = "wave", Power = 7 }
         };
 
         var items = new[]
@@ -115,16 +125,16 @@ public static class GameDefinitionLoader
                 Name = "안내인",
                 DialogueLines =
                 [
-                    "새 기준 세계에 온 걸 환영해.",
-                    "사람 앞에서 엔터를 누르면 말을 걸 수 있어.",
-                    "동쪽 길의 정찰원 린을 이기고 돌아와."
+                    "새싹마을에 온 걸 환영해.",
+                    "북쪽 광장에는 치료, 상점, PC가 모여 있어 준비하기 좋아.",
+                    "동쪽 길의 정찰 트레이너를 이기고 돌아오면 마을 표식을 줄게."
                 ],
                 ConditionalDialogueFlag = "trainer_route_scout_defeated",
                 ConditionalDialogueLines =
                 [
-                    "정찰원 린을 이겼구나.",
-                    "이제 동쪽 길이 제대로 열린 셈이야.",
-                    "준비되면 더 앞으로 나아가 봐."
+                    "정찰 트레이너를 넘었구나.",
+                    "이제 바람숲 입구까지 길이 한결 편해졌어.",
+                    "준비가 되면 더 멀리 떠나 보자."
                 ],
                 GrantsFlagOnTalk = "objective_route_challenge",
                 RewardRequiredFlag = "trainer_route_scout_defeated",
@@ -135,26 +145,27 @@ public static class GameDefinitionLoader
                 RewardItemQuantity = 1,
                 RewardDialogueLines =
                 [
-                    "루트 마크를 받았어.",
-                    "상금 120원과 상처약 하나를 챙겨 가."
+                    "바람길 마크를 받았다!",
+                    "상금 120원과 상처약 1개를 챙겨 가.",
+                    "숲 입구까지 둘러보면 다음 여정 준비가 더 쉬워질 거야."
                 ],
                 VisualStyle = "guide"
             },
             new NpcDefinition
             {
                 Id = "elder_npc",
-                Name = "장로",
+                Name = "노인",
                 DialogueLines =
                 [
-                    "이 마을은 작은 길로 이어진단다.",
-                    "나무가 안전한 길의 경계를 알려 주지.",
-                    "풀이 무성한 곳엔 몬스터가 숨어 있어."
+                    "새싹마을 동쪽 길은 넓어 보여도 흐름이 하나로 이어져 있단다.",
+                    "길을 따라가다 보면 풀밭과 나무길이 차례로 이어지지.",
+                    "회복이 필요하면 광장의 간호사를 먼저 찾으렴."
                 ],
                 ConditionalDialogueFlag = "trainer_route_scout_defeated",
                 ConditionalDialogueLines =
                 [
-                    "길목의 정찰원은 이미 물러났단다.",
-                    "이제 더 동쪽으로 가도 되겠구나."
+                    "정찰이를 물리쳤다면 숲 입구까지는 한숨 돌릴 수 있겠구나.",
+                    "풀숲 옆 반짝임도 놓치지 말아라."
                 ],
                 VisualStyle = "elder"
             },
@@ -164,8 +175,8 @@ public static class GameDefinitionLoader
                 Name = "미라 간호사",
                 DialogueLines =
                 [
-                    "파티가 많이 지쳐 보이네.",
-                    "잠깐 쉬고 싶을 때는 언제든 찾아와."
+                    "모험 전에 숨을 고르고 가요.",
+                    "지친 몬스터는 언제든 내가 돌봐 줄게요."
                 ],
                 VisualStyle = "healer",
                 HealsParty = true
@@ -176,8 +187,8 @@ public static class GameDefinitionLoader
                 Name = "상점주인 레아",
                 DialogueLines =
                 [
-                    "길에 나갈 준비물이 필요하니?",
-                    "기본 물건은 늘 준비해 두고 있단다."
+                    "동쪽 길로 나가기 전에 기본 물건부터 챙겨요.",
+                    "상처약과 포획구는 초반 여정의 필수품이죠."
                 ],
                 VisualStyle = "shopkeeper",
                 OpensShop = true,
@@ -185,29 +196,62 @@ public static class GameDefinitionLoader
             },
             new NpcDefinition
             {
-                Id = "route_scout",
-                Name = "정찰원 린",
+                Id = "town_child",
+                Name = "마을아이",
                 DialogueLines =
                 [
-                    "안내인이 아직 이쪽으로 보내지 않았어."
+                    "길 끝 숲 입구에 반짝이는 물건이 하나 떨어져 있었어.",
+                    "풀숲 옆 좁은 길을 잘 보면 보여!"
+                ],
+                VisualStyle = "guide"
+            },
+            new NpcDefinition
+            {
+                Id = "grove_watcher",
+                Name = "숲지기",
+                DialogueLines =
+                [
+                    "여긴 바람숲 입구야.",
+                    "아직 작은 길이지만, 다음 지역으로 이어질 준비가 된 곳이지."
+                ],
+                ConditionalDialogueFlag = "milestone_route_mark_claimed",
+                ConditionalDialogueLines =
+                [
+                    "마크까지 받았다면 이제 이 숲길도 겁나지 않겠군.",
+                    "준비가 되면 더 깊은 지역도 만들 수 있을 거야."
+                ],
+                VisualStyle = "elder"
+            },
+            new NpcDefinition
+            {
+                Id = "route_scout",
+                Name = "정찰원 리노",
+                DialogueLines =
+                [
+                    "안내인이 아직 널 동쪽 길로 보내지 않았나 보네."
                 ],
                 ConditionalDialogueFlag = "trainer_route_scout_defeated",
                 ConditionalDialogueLines =
                 [
-                    "넌 이미 이 길에서 실력을 보여 줬어."
+                    "좋아, 이제 넌 이 길에서 버틸 힘이 있다는 걸 보여 줬어."
                 ],
                 VisualStyle = "scout",
                 StartsTrainerBattle = true,
                 TrainerDefeatedFlag = "trainer_route_scout_defeated",
                 TrainerRequiredFlag = "objective_route_challenge",
                 TrainerVictoryFlag = "objective_route_cleared",
-                TrainerNoticeText = "정찰원 린이 길목에서 너를 발견했다!",
+                TrainerNoticeText = "정찰원 리노가 길목에서 당신을 발견했다!",
                 TrainerCreatureId = "brookit",
                 TrainerCreatureLevel = 6
             }
         };
 
-        return new GameDefinitions(maps.ToDictionary(x => x.Id), species.ToDictionary(x => x.Id), npcs.ToDictionary(x => x.Id), moves.ToDictionary(x => x.Id), items.ToDictionary(x => x.Id));
+        return new GameDefinitions(
+            maps.ToDictionary(x => x.Id),
+            species.ToDictionary(x => x.Id),
+            npcs.ToDictionary(x => x.Id),
+            moves.ToDictionary(x => x.Id),
+            items.ToDictionary(x => x.Id));
     }
 
     private sealed class GameDefinitionsFile

@@ -16,6 +16,7 @@ public sealed class WorldMap
     public List<MapWarp> Warps { get; init; } = [];
     public List<NpcPlacement> Npcs { get; init; } = [];
     public List<PcTerminal> PcTerminals { get; init; } = [];
+    public List<WorldPickup> Pickups { get; init; } = [];
     public List<EncounterDefinition> Encounters { get; init; } = [];
 
     public int Width => Rows.Count == 0 ? 0 : Rows[0].Length;
@@ -89,6 +90,21 @@ public sealed class WorldMap
         }
 
         terminal = null!;
+        return false;
+    }
+
+    public bool TryGetPickupAt(Point point, out WorldPickup pickup)
+    {
+        for (var i = 0; i < Pickups.Count; i++)
+        {
+            if (Pickups[i].X == point.X && Pickups[i].Y == point.Y)
+            {
+                pickup = Pickups[i];
+                return true;
+            }
+        }
+
+        pickup = null!;
         return false;
     }
 }

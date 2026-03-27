@@ -1,0 +1,70 @@
+Summary
+
+- 첫 지역을 `새싹마을 -> 동쪽 1번길 -> 바람숲 입구` 흐름으로 재구성했습니다.
+- 치료소, 상점, PC, 안내 NPC, 힌트 NPC, 정찰 트레이너, 월드 픽업을 더 읽기 쉬운 위치로 다시 배치했습니다.
+- 월드 HUD와 상태 문구를 한국어 기준으로 다듬어 현재 위치와 목표가 더 분명하게 보이도록 정리했습니다.
+
+Files changed
+
+- Content/Definitions/game-definitions.json
+- Domain/World/WorldMap.cs
+- Domain/World/WorldPickup.cs
+- GameFlow/GameSession.cs
+- GameFlow/States/World/WorldState.cs
+- Infrastructure/Content/GameDefinitionLoader.cs
+
+First-region completeness now supported
+
+- 시작 지점이 마을 남서쪽으로 정리되어 광장과 시설 구역으로 자연스럽게 들어가게 했습니다.
+- 동쪽 길에는 안전한 길, 잔디 구역, 정찰 트레이너 구간이 분리되어 초반 진행 흐름이 더 명확해졌습니다.
+- 동쪽 끝에는 `바람숲 입구` 성격의 작은 전이 공간을 넣어 단일 테스트룸 느낌을 줄였습니다.
+- 월드 아이템 픽업 2개를 추가했고, 획득 여부는 진행 플래그로 추적합니다.
+
+Layout/world readability improvements
+
+- 마을 북쪽 광장을 치료, 상점, PC 준비 구역으로 읽히게 재배치했습니다.
+- 동쪽 길과 숲 입구를 위치 기반 보조 지역명으로 구분해 플레이어가 현재 구역을 이해하기 쉽게 했습니다.
+- 하단 HUD에 현재 목표를 한국어로 표시해 안내인, 트레이너, 보상, 숲 입구 탐색 흐름이 더 자연스럽게 이어지게 했습니다.
+- 좌표 표시 대신 상황형 상태 메시지를 사용해 프로토타입 느낌을 줄였습니다.
+
+Presentation/refinement improvements
+
+- 한국어 도움말 문구를 정리해 조사, 가방, 파티, 일시정지 흐름이 한눈에 읽히게 했습니다.
+- 픽업 아이템을 월드에서 보이는 오브젝트로 그리도록 추가했습니다.
+- 상단 HUD에 지역명, 세부 구역, 상태 메시지, 소지금, 마크, 선두 정보를 분리해서 배치했습니다.
+
+Optimization-minded improvements
+
+- 월드 픽업은 `WorldMap`의 단순 리스트와 진행 플래그만 사용해서 별도 무거운 상태 구조를 만들지 않았습니다.
+- 픽업 저장은 기존 progression flag 저장 경로를 재사용해 save/load 구조를 넓히지 않았습니다.
+- 월드 갱신 중 픽업 판정은 이동 후 1회만 수행하고, 그리기도 미획득 픽업만 순회합니다.
+
+Save/load compatibility check
+
+- 맵 id는 기존 `new_bark_town`을 유지해 기존 단일 세이브 로드 경로와 충돌하지 않게 했습니다.
+- 새 월드 픽업은 진행 플래그로 추적되므로 기존 save payload의 progression flags 저장 경로와 그대로 호환됩니다.
+- `GameSessionFactory` 시작 위치는 새 맵 spawn 좌표를 사용하고, `SaveGameService`는 현재 map id / 좌표 / progression flags를 계속 복원합니다.
+
+Practical gameplay QA performed
+
+- `dotnet build PyGame.sln` 성공 확인
+- JSON 실제 파싱 확인
+- Python BFS 스크립트로 시작 지점에서 healer, shop, PC, guide, elder, trainer, pickup까지 도달 가능한 거리 확인
+- 새 맵의 모든 row 길이와 주요 배치 타일 검증
+- save/load 호환성은 코드 경로와 맵 id, progression flag 지속성 기준으로 재확인
+
+Build command run
+
+- dotnet build PyGame.sln
+
+Build result
+
+- Success
+- 0 warnings
+- 0 errors
+
+Remaining issues
+
+- 실제 GUI 창을 열고 손으로 10~20분 플레이하는 수동 QA는 이 환경에서 수행하지 못했습니다.
+- 첫 지역은 훨씬 정리됐지만, 아직 건물 외형과 랜드마크 연출은 경량 placeholder 수준입니다.
+- 월드 픽업은 현재 자동 획득형이라, 추후에는 조사형 연출로 다듬을 여지가 있습니다.

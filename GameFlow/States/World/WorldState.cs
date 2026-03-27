@@ -57,14 +57,14 @@ public sealed class WorldState : IGameState
         if (map.TryGetPcTerminalAt(target, out var terminal))
         {
             session.ReturnState = GameStateId.World;
-            session.StatusMessage = $"{terminal.Label}를 열었습니다";
+            session.StatusMessage = $"{terminal.Label}를 열었습니다.";
             context.StateManager.ChangeState(GameStateId.Storage);
             return;
         }
 
         if (!map.TryGetNpcAt(target, out var npcPlacement))
         {
-            session.StatusMessage = "말을 걸 수 있는 대상이 없습니다";
+            session.StatusMessage = "앞에는 조사할 것이 없습니다.";
             return;
         }
 
@@ -73,7 +73,7 @@ public sealed class WorldState : IGameState
         {
             session.Party.HealAll();
             session.Party.EnsureUsableLead();
-            session.StatusMessage = $"{npc.Name}가 파티를 회복해 주었습니다";
+            session.StatusMessage = $"{npc.Name}가 파티를 모두 회복해 주었습니다.";
             return;
         }
 
@@ -81,7 +81,7 @@ public sealed class WorldState : IGameState
         {
             session.CurrentShopItemIds = npc.ShopItemIds;
             session.ReturnState = GameStateId.World;
-            session.StatusMessage = $"{npc.Name}의 상점에 들어왔습니다";
+            session.StatusMessage = $"{npc.Name}의 상점에 들어갔습니다.";
             context.StateManager.ChangeState(GameStateId.Shop);
             return;
         }
@@ -95,18 +95,18 @@ public sealed class WorldState : IGameState
         var statusLocked = false;
         if (npc.StartsTrainerBattle && session.Progression.HasFlag(npc.TrainerDefeatedFlag))
         {
-            session.StatusMessage = $"{npc.Name}은(는) 이미 패배했습니다";
+            session.StatusMessage = $"{npc.Name}은 이미 승부를 인정했습니다.";
             statusLocked = true;
         }
         else if (!string.IsNullOrWhiteSpace(npc.TrainerRequiredFlag) && !session.Progression.HasFlag(npc.TrainerRequiredFlag))
         {
-            session.StatusMessage = $"{npc.Name}은(는) 아직 네 차례를 기다리고 있습니다";
+            session.StatusMessage = $"{npc.Name}은 아직 당신을 기다리고 있습니다.";
             statusLocked = true;
         }
 
         if (session.Progression.TryAddFlag(npc.GrantsFlagOnTalk))
         {
-            session.StatusMessage = $"{npc.Name}에게서 새 목표를 받았습니다";
+            session.StatusMessage = $"{npc.Name}에게서 첫 목표를 받았습니다.";
             statusLocked = true;
         }
 
@@ -122,7 +122,7 @@ public sealed class WorldState : IGameState
                 session.Inventory.Add(npc.RewardItemId, npc.RewardItemQuantity);
             }
 
-            session.StatusMessage = $"{npc.Name}에게서 마일스톤 보상을 받았습니다";
+            session.StatusMessage = $"{npc.Name}에게서 바람길 마크와 보상을 받았습니다.";
             rewardGranted = true;
             statusLocked = true;
         }
@@ -134,7 +134,7 @@ public sealed class WorldState : IGameState
         session.ReturnState = GameStateId.World;
         if (!statusLocked)
         {
-            session.StatusMessage = $"{npc.Name}와 대화 중입니다";
+            session.StatusMessage = $"{npc.Name}와 대화합니다.";
         }
 
         context.StateManager.ChangeState(GameStateId.Dialogue);
@@ -198,6 +198,16 @@ public sealed class WorldState : IGameState
             }
         }
 
+        foreach (var pickup in map.Pickups)
+        {
+            if (session.Progression.HasFlag(pickup.CollectedFlag))
+            {
+                continue;
+            }
+
+            DrawPickup(context, pickup, tileSize);
+        }
+
         foreach (var terminal in map.PcTerminals)
         {
             var tileRect = new Rectangle(terminal.X * tileSize, terminal.Y * tileSize, tileSize, tileSize);
@@ -223,22 +233,8 @@ public sealed class WorldState : IGameState
         context.SpriteBatch.End();
 
         context.SpriteBatch.Begin();
-        context.PrimitiveRenderer.Fill(new Rectangle(16, 16, 350, 76), new Color(10, 18, 24, 220));
-        context.PrimitiveRenderer.Outline(new Rectangle(16, 16, 350, 76), 2, new Color(198, 176, 96));
-        context.TextRenderer.DrawText(new Vector2(30, 28), map.Name, 2, new Color(246, 236, 192));
-        context.TextRenderer.DrawText(new Vector2(30, 56), session.StatusMessage, 2, new Color(220, 228, 210));
-
-        context.PrimitiveRenderer.Fill(new Rectangle(742, 16, 202, 76), new Color(10, 18, 24, 220));
-        context.PrimitiveRenderer.Outline(new Rectangle(742, 16, 202, 76), 2, new Color(198, 176, 96));
-        context.TextRenderer.DrawText(new Vector2(760, 28), $"소지금 {session.Money}", 2, new Color(246, 236, 192));
-        context.TextRenderer.DrawText(new Vector2(760, 56), $"마크 {session.Progression.BadgeCount}  진행 {session.Progression.Flags.Count}", 2, new Color(220, 228, 210));
-
-        context.PrimitiveRenderer.Fill(new Rectangle(16, 438, 928, 86), new Color(10, 18, 24, 220));
-        context.PrimitiveRenderer.Outline(new Rectangle(16, 438, 928, 86), 2, new Color(198, 176, 96));
-        context.TextRenderer.DrawText(new Vector2(34, 452), "서쪽은 마을 중심", 2, new Color(216, 226, 232));
-        context.TextRenderer.DrawText(new Vector2(34, 480), "동쪽은 길과 풀숲", 2, new Color(216, 226, 232));
-        context.TextRenderer.DrawText(new Vector2(430, 452), "엔터 또는 스페이스로 대화하거나 PC 사용", 2, new Color(216, 226, 232));
-        context.TextRenderer.DrawText(new Vector2(430, 480), "B 가방  P 파티  ESC 일시정지  먼저 안내인을 만나세요", 2, new Color(216, 226, 232));
+        DrawTopHud(context, map.Name, GetAreaName(session.PlayerTilePosition), session.StatusMessage, session);
+        DrawBottomHud(context, GetObjectiveText(session), GetControlText());
         context.SpriteBatch.End();
     }
 
@@ -258,26 +254,27 @@ public sealed class WorldState : IGameState
 
         if (!map.IsWalkable(target))
         {
-            session.StatusMessage = "이쪽으로는 갈 수 없습니다";
+            session.StatusMessage = "그쪽으로는 갈 수 없습니다.";
             return;
         }
 
         if (map.TryGetNpcAt(target, out _))
         {
-            session.StatusMessage = "누군가 길을 막고 있습니다";
+            session.StatusMessage = "누군가 길을 막고 있습니다.";
             return;
         }
 
         session.PlayerTilePosition = target;
-        session.StatusMessage = $"{target.X},{target.Y} 칸으로 이동";
 
         if (map.TryGetWarpAt(target, out var warp))
         {
             session.CurrentMapId = warp.TargetMapId;
             session.PlayerTilePosition = new Point(warp.TargetX, warp.TargetY);
-            session.StatusMessage = $"{context.Definitions.Maps[warp.TargetMapId].Name}에 들어왔습니다";
+            session.StatusMessage = $"{context.Definitions.Maps[warp.TargetMapId].Name}에 도착했습니다.";
             return;
         }
+
+        TryCollectPickup(map, target, context);
 
         if (!map.IsEncounterTile(target) || map.Encounters.Count == 0 || Random.Shared.NextDouble() >= 0.18d)
         {
@@ -287,7 +284,7 @@ public sealed class WorldState : IGameState
 
         if (!session.Party.EnsureUsableLead())
         {
-            session.StatusMessage = "파티가 회복이 필요합니다";
+            session.StatusMessage = "파티를 먼저 회복해야 합니다.";
             return;
         }
 
@@ -302,9 +299,27 @@ public sealed class WorldState : IGameState
             OpponentCreature = Creature.Create(species.Id, species.Name, level)
         };
         session.ReturnState = GameStateId.World;
-        session.StatusMessage = $"야생 {species.Name}이(가) 나타났습니다";
+        session.StatusMessage = $"야생 {species.Name}이 나타났다!";
         context.Audio.PlayBattleStart();
         context.StateManager.ChangeState(GameStateId.Battle);
+    }
+
+    private static void TryCollectPickup(WorldMap map, Point target, GameContext context)
+    {
+        if (!map.TryGetPickupAt(target, out var pickup))
+        {
+            return;
+        }
+
+        if (context.Session.Progression.HasFlag(pickup.CollectedFlag))
+        {
+            return;
+        }
+
+        context.Session.Inventory.Add(pickup.ItemId, pickup.Quantity);
+        context.Session.Progression.TryAddFlag(pickup.CollectedFlag);
+        var item = context.Definitions.Items[pickup.ItemId];
+        context.Session.StatusMessage = $"{item.Name} {pickup.Quantity}개를 주웠다.";
     }
 
     private static void CheckTrainerSight(WorldMap map, GameContext context)
@@ -329,7 +344,7 @@ public sealed class WorldState : IGameState
                 continue;
             }
 
-            StartTrainerBattle(npc, context, string.IsNullOrWhiteSpace(npc.TrainerNoticeText) ? $"{npc.Name}이(가) 너를 발견했다!" : npc.TrainerNoticeText);
+            StartTrainerBattle(npc, context, string.IsNullOrWhiteSpace(npc.TrainerNoticeText) ? $"{npc.Name}이 당신을 발견했다!" : npc.TrainerNoticeText);
             return;
         }
     }
@@ -338,7 +353,7 @@ public sealed class WorldState : IGameState
     {
         if (!context.Session.Party.EnsureUsableLead())
         {
-            context.Session.StatusMessage = "파티가 회복이 필요합니다";
+            context.Session.StatusMessage = "파티를 먼저 회복해야 합니다.";
             return;
         }
 
@@ -456,6 +471,79 @@ public sealed class WorldState : IGameState
             var tileRect = new Rectangle(point.X * tileSize, point.Y * tileSize, tileSize, tileSize);
             context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 10, tileRect.Width - 20, tileRect.Height - 20), new Color(248, 236, 176, 36));
         }
+    }
+
+    private static void DrawPickup(GameContext context, WorldPickup pickup, int tileSize)
+    {
+        var tileRect = new Rectangle(pickup.X * tileSize, pickup.Y * tileSize, tileSize, tileSize);
+        context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 20, 12, 6), new Color(250, 246, 232));
+        context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 10, 12, 11), new Color(208, 64, 72));
+        context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 11, tileRect.Y + 14, 10, 4), new Color(250, 242, 212));
+        context.PrimitiveRenderer.Outline(new Rectangle(tileRect.X + 10, tileRect.Y + 10, 12, 16), 1, new Color(60, 34, 34));
+    }
+
+    private static void DrawTopHud(GameContext context, string mapName, string areaName, string statusMessage, GameSession session)
+    {
+        context.PrimitiveRenderer.Fill(new Rectangle(16, 16, 420, 94), new Color(10, 18, 24, 220));
+        context.PrimitiveRenderer.Outline(new Rectangle(16, 16, 420, 94), 2, new Color(198, 176, 96));
+        context.TextRenderer.DrawText(new Vector2(30, 28), mapName, 2, new Color(246, 236, 192));
+        context.TextRenderer.DrawText(new Vector2(30, 54), areaName, 2, new Color(214, 226, 212));
+        context.TextRenderer.DrawText(new Vector2(30, 80), statusMessage, 2, new Color(220, 228, 210));
+
+        context.PrimitiveRenderer.Fill(new Rectangle(708, 16, 236, 94), new Color(10, 18, 24, 220));
+        context.PrimitiveRenderer.Outline(new Rectangle(708, 16, 236, 94), 2, new Color(198, 176, 96));
+        context.TextRenderer.DrawText(new Vector2(724, 28), $"소지금 {session.Money}", 2, new Color(246, 236, 192));
+        context.TextRenderer.DrawText(new Vector2(724, 54), $"마크 {session.Progression.BadgeCount}  진행 {session.Progression.Flags.Count}", 2, new Color(220, 228, 210));
+        context.TextRenderer.DrawText(new Vector2(724, 80), $"선두 {session.Party.ActiveCreature.Nickname}", 2, new Color(220, 228, 210));
+    }
+
+    private static void DrawBottomHud(GameContext context, string objectiveText, string controlText)
+    {
+        context.PrimitiveRenderer.Fill(new Rectangle(16, 426, 928, 98), new Color(10, 18, 24, 220));
+        context.PrimitiveRenderer.Outline(new Rectangle(16, 426, 928, 98), 2, new Color(198, 176, 96));
+        context.TextRenderer.DrawText(new Vector2(34, 442), "현재 목표", 2, new Color(246, 236, 192));
+        context.TextRenderer.DrawText(new Vector2(34, 470), objectiveText, 2, new Color(216, 226, 232));
+        context.TextRenderer.DrawText(new Vector2(34, 496), controlText, 2, new Color(216, 226, 232));
+    }
+
+    private static string GetAreaName(Point tilePosition)
+    {
+        return tilePosition.X switch
+        {
+            <= 10 => "새싹마을 광장",
+            <= 19 => "동쪽 1번길",
+            _ => "바람숲 입구"
+        };
+    }
+
+    private static string GetObjectiveText(GameSession session)
+    {
+        if (!session.Progression.HasFlag("objective_route_challenge"))
+        {
+            return "광장의 안내인에게 말을 걸어 첫 목표를 받으세요.";
+        }
+
+        if (!session.Progression.HasFlag("trainer_route_scout_defeated"))
+        {
+            return "동쪽 1번길의 정찰원 리노를 이기고 길을 여세요.";
+        }
+
+        if (!session.Progression.HasFlag("milestone_route_mark_claimed"))
+        {
+            return "안내인에게 돌아가 바람길 마크와 보상을 받으세요.";
+        }
+
+        if (!session.Progression.HasFlag("pickup_grove_sphere"))
+        {
+            return "바람숲 입구를 둘러보고 반짝이는 물건도 챙겨 보세요.";
+        }
+
+        return "마을 시설을 이용하며 다음 지역으로 떠날 준비를 하세요.";
+    }
+
+    private static string GetControlText()
+    {
+        return "이동 WASD / 방향키  조사 Enter / Space  가방 B  파티 P  일시정지 ESC";
     }
 
     private static void DrawCharacter(GameContext context, Point tilePosition, Point facingDirection, CharacterPalette palette, bool isPlayer)
