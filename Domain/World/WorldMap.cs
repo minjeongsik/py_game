@@ -7,6 +7,7 @@ public sealed class WorldMap
 {
     public string Id { get; init; } = string.Empty;
     public string Name { get; init; } = string.Empty;
+    public string AreaLabel { get; init; } = string.Empty;
     public int TileSize { get; init; } = 32;
     public int SpawnX { get; init; }
     public int SpawnY { get; init; }
@@ -23,9 +24,14 @@ public sealed class WorldMap
     public int Height => Rows.Count;
     public Point PixelSize => new(Width * TileSize, Height * TileSize);
 
+    public bool IsInBounds(Point point)
+    {
+        return point.X >= 0 && point.Y >= 0 && point.X < Width && point.Y < Height;
+    }
+
     public TileType GetTileType(Point point)
     {
-        if (point.X < 0 || point.Y < 0 || point.X >= Width || point.Y >= Height)
+        if (!IsInBounds(point))
         {
             return TileType.Wall;
         }
@@ -36,6 +42,10 @@ public sealed class WorldMap
             'T' => TileType.Tree,
             'g' => TileType.Grass,
             '=' => TileType.Path,
+            'H' => TileType.Building,
+            'D' => TileType.Door,
+            'C' => TileType.Counter,
+            'S' => TileType.Service,
             _ => TileType.Floor
         };
     }
@@ -43,7 +53,7 @@ public sealed class WorldMap
     public bool IsWalkable(Point point)
     {
         var tile = GetTileType(point);
-        return tile is not TileType.Wall and not TileType.Tree;
+        return tile is not TileType.Wall and not TileType.Tree and not TileType.Building and not TileType.Counter;
     }
 
     public bool IsEncounterTile(Point point) => GetTileType(point) == TileType.Grass;

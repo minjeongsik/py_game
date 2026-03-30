@@ -17,9 +17,11 @@ public sealed class GameContext
     public required AudioService Audio { get; init; }
     public required Camera2D Camera { get; init; }
     public required PrimitiveRenderer PrimitiveRenderer { get; init; }
+    public required RetroArtAssets Art { get; init; }
     public required PixelTextRenderer TextRenderer { get; init; }
     public required MenuRenderer MenuRenderer { get; init; }
     public required DialogueBoxRenderer DialogueRenderer { get; init; }
+    public required UiSkinRenderer UiSkin { get; init; }
     public required GraphicsDevice GraphicsDevice { get; init; }
     public required SpriteBatch SpriteBatch { get; init; }
     public required GameDefinitions Definitions { get; init; }

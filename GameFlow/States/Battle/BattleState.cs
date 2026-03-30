@@ -1,39 +1,51 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PyGame.Domain.Battle;
 using PyGame.Domain.Creatures;
+using PyGame.Domain.Inventory;
 using PyGame.GameFlow.StateManager;
 
 namespace PyGame.GameFlow.States.Battle;
 
 public sealed class BattleState : IGameState
 {
-    private static readonly MoveDefinition[] FallbackMoves =
-    [
-        new MoveDefinition { Id = "tackle", Name = "몸통박치기", TypeId = "neutral", Power = 5 }
-    ];
-
-    private readonly string[] _options = ["기술", "가방", "교체", "포획", "도주"];
+    private readonly string[] _options = BattleText.Options;
     private int _selected;
     private int _switchSelection;
     private int _moveSelection;
     private int _itemSelection;
+    private int _itemTargetSelection;
     private bool _awaitingDismiss;
     private bool _selectingSwitch;
     private bool _selectingMoves;
     private bool _selectingItems;
+    private bool _selectingItemTarget;
     private bool _forcedSwitch;
+    private bool _returnAfterDismiss;
     private string _resultMessage = string.Empty;
     private Encounter? _boundEncounter;
     private Creature? _boundActiveCreature;
-    private MoveDefinition[] _playerMoves = FallbackMoves;
-    private MoveDefinition[] _enemyMoves = FallbackMoves;
+    private MoveDefinition[] _playerMoves = [];
+    private MoveDefinition[] _enemyMoves = [];
+    private float _enemyImpactTimer;
+    private float _playerImpactTimer;
+    private float _effectFlashTimer;
+    private float _playerEntryTimer;
+    private float _enemyEntryTimer;
+    private float _superGauge;
+    private Color _effectFlashColor = Color.White;
 
     public GameStateId Id => GameStateId.Battle;
 
     public void Update(GameTime gameTime, GameContext context)
     {
-        _ = gameTime;
+        var elapsed = (float)gameTime.ElapsedGameTime.TotalSeconds;
+        _enemyImpactTimer = Math.Max(0f, _enemyImpactTimer - elapsed);
+        _playerImpactTimer = Math.Max(0f, _playerImpactTimer - elapsed);
+        _effectFlashTimer = Math.Max(0f, _effectFlashTimer - elapsed);
+        _playerEntryTimer = Math.Max(0f, _playerEntryTimer - elapsed);
+        _enemyEntryTimer = Math.Max(0f, _enemyEntryTimer - elapsed);
 
         var encounter = context.Session.ActiveEncounter;
         if (encounter is null)
@@ -45,20 +57,7 @@ public sealed class BattleState : IGameState
 
         if (!ReferenceEquals(_boundEncounter, encounter))
         {
-            _boundEncounter = encounter;
-            _selected = 0;
-            _switchSelection = 0;
-            _moveSelection = 0;
-            _itemSelection = 0;
-            _awaitingDismiss = false;
-            _selectingSwitch = false;
-            _selectingMoves = false;
-            _selectingItems = false;
-            _forcedSwitch = false;
-            _resultMessage = encounter.IsTrainerBattle
-                ? $"트레이너 {encounter.OpponentName}이(가) 승부를 걸어왔다!"
-                : $"야생 {encounter.OpponentCreature.Nickname}이(가) 나타났다!";
-            BindMoveSets(context, encounter);
+            BindEncounter(context, encounter);
         }
         else if (!ReferenceEquals(_boundActiveCreature, context.Session.Party.ActiveCreature))
         {
@@ -67,19 +66,21 @@ public sealed class BattleState : IGameState
 
         if (_awaitingDismiss)
         {
-            if (context.Input.WasPressed(Keys.Enter) || context.Input.WasPressed(Keys.Space) || context.Input.WasPressed(Keys.Escape))
+            if (IsConfirmPressed(context))
             {
+                if (_returnAfterDismiss)
+                {
+                    context.Session.Party.RecoverAfterDefeat(context.Definitions.Moves);
+                    context.Session.CurrentMapId = context.Session.RecoveryMapId;
+                    context.Session.PlayerTilePosition = context.Session.RecoveryTilePosition;
+                    context.Session.StatusMessage = "기절해서 마지막 회복 지점으로 돌아왔다.";
+                }
+
                 context.Session.ActiveEncounter = null;
                 ResetLocalState();
                 context.StateManager.ChangeState(context.Session.ReturnState);
             }
 
-            return;
-        }
-
-        if (_selectingSwitch)
-        {
-            UpdateSwitchSelection(context, encounter);
             return;
         }
 
@@ -91,16 +92,34 @@ public sealed class BattleState : IGameState
 
         if (_selectingItems)
         {
-            UpdateItemSelection(context, encounter);
+            UpdateItemSelection(context);
             return;
         }
 
-        if (context.Input.WasPressed(Keys.Up) || context.Input.WasPressed(Keys.W))
+        if (_selectingItemTarget)
+        {
+            UpdateItemTargetSelection(context, encounter);
+            return;
+        }
+
+        if (_selectingSwitch)
+        {
+            UpdateSwitchSelection(context, encounter);
+            return;
+        }
+
+        if (context.Session.Party.ActiveCreature.IsFainted)
+        {
+            OpenSwitchMenu(context, true);
+            return;
+        }
+
+        if (IsUpPressed(context))
         {
             _selected = (_selected + _options.Length - 1) % _options.Length;
         }
 
-        if (context.Input.WasPressed(Keys.Down) || context.Input.WasPressed(Keys.S))
+        if (IsDownPressed(context))
         {
             _selected = (_selected + 1) % _options.Length;
         }
@@ -111,7 +130,7 @@ public sealed class BattleState : IGameState
             return;
         }
 
-        if (!context.Input.WasPressed(Keys.Enter) && !context.Input.WasPressed(Keys.Space))
+        if (!IsConfirmPressed(context))
         {
             return;
         }
@@ -120,18 +139,20 @@ public sealed class BattleState : IGameState
         {
             case 0:
                 _selectingMoves = true;
-                _moveSelection = Math.Clamp(_moveSelection, 0, _playerMoves.Length - 1);
                 _resultMessage = "사용할 기술을 고르세요.";
                 break;
             case 1:
                 _selectingItems = true;
                 _itemSelection = 0;
-                _resultMessage = "전투에서 사용할 도구를 고르세요.";
+                _resultMessage = "회복 아이템을 고르세요.";
                 break;
             case 2:
                 OpenSwitchMenu(context, false);
                 break;
             case 3:
+                ResolveSuperMove(context, encounter);
+                break;
+            case 4:
                 ResolveCapture(context, encounter);
                 break;
             default:
@@ -142,69 +163,120 @@ public sealed class BattleState : IGameState
 
     public void Draw(GameTime gameTime, GameContext context)
     {
-        _ = gameTime;
-
+        var battleTime = (float)gameTime.TotalGameTime.TotalSeconds;
         var encounter = context.Session.ActiveEncounter;
         var player = context.Session.Party.ActiveCreature;
-        var playerSpecies = context.Definitions.Species[player.SpeciesId];
-        var enemySpecies = encounter is null ? playerSpecies : context.Definitions.Species[encounter.OpponentCreature.SpeciesId];
+        var enemy = encounter?.OpponentCreature;
 
-        context.SpriteBatch.Begin();
-        DrawBattleBackdrop(context);
+        context.SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        DrawBackdrop(context);
 
-        if (encounter is not null)
+        if (enemy is not null)
         {
-            DrawCreatureStage(context, new Rectangle(60, 70, 320, 150), encounter.OpponentCreature.SpeciesId, false);
-            DrawBattleCard(
+            var enemyBob = GetBattleBobOffset(battleTime, 0.6f);
+            var enemyEntryOffset = GetEntryOffset(_enemyEntryTimer, 112);
+            DrawCreatureShadow(context, new Rectangle(688, 226, 132, 18), _enemyImpactTimer);
+            DrawCreatureSprite(
                 context,
-                new Rectangle(584, 42, 320, 132),
-                encounter.OpponentCreature,
-                enemySpecies.PrimaryTypeId,
-                encounter.IsTrainerBattle ? $"트레이너 {encounter.OpponentName}" : "야생 몬스터",
+                enemy.SpeciesId,
+                false,
+                new Rectangle(664 + ImpactOffset(_enemyImpactTimer) + enemyEntryOffset, 92 + enemyBob, 164, 164),
+                _enemyImpactTimer);
+            DrawCard(
+                context,
+                new Rectangle(470, 30, 230, 78),
+                enemy,
+                encounter!.IsTrainerBattle ? $"트레이너 {encounter.OpponentName}" : "야생",
                 false);
         }
 
-        DrawCreatureStage(context, new Rectangle(548, 192, 300, 166), player.SpeciesId, true);
-        DrawBattleCard(context, new Rectangle(58, 234, 358, 140), player, playerSpecies.PrimaryTypeId, "내 선두", true);
-        DrawMessagePanel(context, context.Session, encounter);
+        var playerBob = GetBattleBobOffset(battleTime, 0f);
+        var playerEntryOffset = GetEntryOffset(_playerEntryTimer, 124);
+        DrawCreatureShadow(context, new Rectangle(124, 390, 172, 20), _playerImpactTimer);
+        DrawCreatureSprite(
+            context,
+            player.SpeciesId,
+            true,
+            new Rectangle(88 - ImpactOffset(_playerImpactTimer) - playerEntryOffset, 214 + playerBob, 198, 198),
+            _playerImpactTimer);
+        DrawCard(context, new Rectangle(56, 250, 328, 96), player, "우리 선두", true);
+        DrawMessage(context, encounter);
 
-        if (_awaitingDismiss)
+        if (_selectingMoves)
         {
-            DrawHintLine(context, "Enter 또는 Space를 누르면 필드로 돌아갑니다.");
-        }
-        else if (_selectingSwitch)
-        {
-            DrawSwitchPanel(context);
-            DrawHintLine(context, _forcedSwitch ? "기절했습니다. 다음 몬스터를 반드시 골라야 합니다." : "교체하면 상대가 곧바로 행동합니다.");
+            DrawMoves(context);
         }
         else if (_selectingItems)
         {
-            DrawItemPanel(context);
-            DrawHintLine(context, $"상처약 {context.Session.Inventory.GetQuantity("potion")}개  포획구 {context.Session.Inventory.GetQuantity("capture-sphere")}개");
+            DrawItems(context);
         }
-        else if (_selectingMoves)
+        else if (_selectingItemTarget)
         {
-            DrawMovePanel(context);
-            var move = _playerMoves[_moveSelection];
-            DrawHintLine(context, $"{move.Name}  속성 {GetTypeLabel(move.TypeId)}  위력 {move.Power}");
+            DrawTargets(context);
+        }
+        else if (_selectingSwitch)
+        {
+            DrawSwitches(context);
         }
         else
         {
-            DrawActionPanel(context);
-            DrawHintLine(context, "기술, 가방, 교체, 포획, 도주 중 하나를 선택하세요.");
+            DrawActions(context);
+        }
+
+        if (_effectFlashTimer > 0f)
+        {
+            var alpha = (byte)Math.Clamp((int)(_effectFlashTimer * 420f), 0, 116);
+            context.PrimitiveRenderer.Fill(new Rectangle(0, 0, context.Viewport.Width, context.Viewport.Height), new Color(_effectFlashColor.R, _effectFlashColor.G, _effectFlashColor.B, alpha));
         }
 
         context.SpriteBatch.End();
     }
 
+    private void BindEncounter(GameContext context, Encounter encounter)
+    {
+        _boundEncounter = encounter;
+        _selected = 0;
+        _switchSelection = 0;
+        _moveSelection = 0;
+        _itemSelection = 0;
+        _itemTargetSelection = 0;
+        _awaitingDismiss = false;
+        _selectingSwitch = false;
+        _selectingMoves = false;
+        _selectingItems = false;
+        _selectingItemTarget = false;
+        _forcedSwitch = false;
+        _returnAfterDismiss = false;
+        _enemyImpactTimer = 0f;
+        _playerImpactTimer = 0f;
+        _effectFlashTimer = 0f;
+        _playerEntryTimer = 0.36f;
+        _enemyEntryTimer = 0.36f;
+        _superGauge = 0f;
+        _effectFlashColor = Color.White;
+        _resultMessage = encounter.IsTrainerBattle
+            ? $"트레이너 {encounter.OpponentName}이(가) 승부를 걸어왔다!"
+            : $"야생 {encounter.OpponentCreature.Nickname}이(가) 나타났다!";
+        BindMoveSets(context, encounter);
+    }
+
+    private void BindMoveSets(GameContext context, Encounter encounter)
+    {
+        _boundActiveCreature = context.Session.Party.ActiveCreature;
+        _playerMoves = BattleMoveHelper.ResolveMoves(context, _boundActiveCreature);
+        _enemyMoves = BattleMoveHelper.ResolveMoves(context, encounter.OpponentCreature);
+        _moveSelection = Math.Clamp(_moveSelection, 0, Math.Max(0, _playerMoves.Length - 1));
+        _switchSelection = Math.Clamp(_switchSelection, 0, Math.Max(0, context.Session.Party.Count - 1));
+    }
+
     private void UpdateMoveSelection(GameContext context, Encounter encounter)
     {
-        if (context.Input.WasPressed(Keys.Up) || context.Input.WasPressed(Keys.W))
+        if (IsUpPressed(context))
         {
             _moveSelection = (_moveSelection + _playerMoves.Length - 1) % _playerMoves.Length;
         }
 
-        if (context.Input.WasPressed(Keys.Down) || context.Input.WasPressed(Keys.S))
+        if (IsDownPressed(context))
         {
             _moveSelection = (_moveSelection + 1) % _playerMoves.Length;
         }
@@ -212,54 +284,156 @@ public sealed class BattleState : IGameState
         if (context.Input.WasPressed(Keys.Escape))
         {
             _selectingMoves = false;
-            _resultMessage = $"{encounter.OpponentCreature.Nickname}이(가) 다음 움직임을 보고 있다.";
+            _resultMessage = "기술 선택을 취소했습니다.";
             return;
         }
 
-        if (!context.Input.WasPressed(Keys.Enter) && !context.Input.WasPressed(Keys.Space))
+        if (!IsConfirmPressed(context))
         {
             return;
         }
 
+        var move = _playerMoves[_moveSelection];
+        var player = context.Session.Party.ActiveCreature;
         _selectingMoves = false;
-        ResolveMoveAttack(context, encounter, _playerMoves[_moveSelection]);
+
+        if (BattleMoveHelper.GetCurrentPp(player, move) <= 0)
+        {
+            _resultMessage = $"{move.Name}의 PP가 모두 떨어졌습니다.";
+            context.Session.StatusMessage = _resultMessage;
+            return;
+        }
+
+        BattleMoveHelper.SpendPp(player, move);
+        if (!BattleMoveHelper.CheckAccuracy(move))
+        {
+            EnemyTurn(context, encounter, $"{player.Nickname}의 {move.Name}! 하지만 빗나갔다.");
+            return;
+        }
+
+        var enemyType = context.Definitions.Species[encounter.OpponentCreature.SpeciesId].PrimaryTypeId;
+        var modifier = TypeChart.GetModifier(move.TypeId, enemyType);
+        var damage = BattleMoveHelper.CalculateDamage(player.Level, encounter.OpponentCreature.Level, move.Power, modifier);
+        encounter.OpponentCreature.CurrentHealth = Math.Max(0, encounter.OpponentCreature.CurrentHealth - damage);
+        AddSuperGauge(24f);
+        TriggerEnemyImpact(move.TypeId);
+        var lead = $"{player.Nickname}의 {move.Name}! {damage} 피해. {BattleText.EffectText(modifier)}";
+
+        if (encounter.OpponentCreature.IsFainted)
+        {
+            ResolveEnemyDefeat(context, encounter, lead);
+            return;
+        }
+
+        EnemyTurn(context, encounter, lead);
     }
 
-    private void UpdateItemSelection(GameContext context, Encounter encounter)
+    private void UpdateItemSelection(GameContext context)
     {
-        if (context.Input.WasPressed(Keys.Up) || context.Input.WasPressed(Keys.W) ||
-            context.Input.WasPressed(Keys.Down) || context.Input.WasPressed(Keys.S))
+        var items = BattleMoveHelper.GetBattleUsableItems(context);
+        if (items.Count == 0)
         {
-            _itemSelection = 0;
+            if (context.Input.WasPressed(Keys.Escape) || IsConfirmPressed(context))
+            {
+                _selectingItems = false;
+                _resultMessage = "사용 가능한 회복 아이템이 없습니다.";
+            }
+
+            return;
+        }
+
+        if (IsUpPressed(context))
+        {
+            _itemSelection = (_itemSelection + items.Count - 1) % items.Count;
+        }
+
+        if (IsDownPressed(context))
+        {
+            _itemSelection = (_itemSelection + 1) % items.Count;
         }
 
         if (context.Input.WasPressed(Keys.Escape))
         {
             _selectingItems = false;
-            _resultMessage = $"{encounter.OpponentCreature.Nickname}이(가) 틈을 노리고 있다.";
+            _resultMessage = "가방을 닫았습니다.";
             return;
         }
 
-        if (!context.Input.WasPressed(Keys.Enter) && !context.Input.WasPressed(Keys.Space))
+        if (!IsConfirmPressed(context))
         {
             return;
         }
 
         _selectingItems = false;
-        UseBattlePotion(context, encounter);
+        _selectingItemTarget = true;
+        _itemTargetSelection = context.Session.Party.ActiveIndex;
+        _resultMessage = $"{items[_itemSelection].Name}을(를) 사용할 대상을 고르세요.";
+    }
+
+    private void UpdateItemTargetSelection(GameContext context, Encounter encounter)
+    {
+        var members = context.Session.Party.Members;
+        if (IsUpPressed(context))
+        {
+            _itemTargetSelection = (_itemTargetSelection + members.Count - 1) % members.Count;
+        }
+
+        if (IsDownPressed(context))
+        {
+            _itemTargetSelection = (_itemTargetSelection + 1) % members.Count;
+        }
+
+        if (context.Input.WasPressed(Keys.Escape))
+        {
+            _selectingItemTarget = false;
+            _selectingItems = true;
+            _resultMessage = "아이템 선택으로 돌아갑니다.";
+            return;
+        }
+
+        if (!IsConfirmPressed(context))
+        {
+            return;
+        }
+
+        var items = BattleMoveHelper.GetBattleUsableItems(context);
+        if (items.Count == 0)
+        {
+            _selectingItemTarget = false;
+            _resultMessage = "사용 가능한 회복 아이템이 없습니다.";
+            return;
+        }
+
+        var item = items[Math.Clamp(_itemSelection, 0, items.Count - 1)];
+        var target = members[_itemTargetSelection];
+        _selectingItemTarget = false;
+
+        if (target.CurrentHealth >= target.MaxHealth)
+        {
+            _resultMessage = $"{target.Nickname}의 체력은 이미 가득합니다.";
+            return;
+        }
+
+        if (!context.Session.Inventory.UseOne(item.Id))
+        {
+            _resultMessage = $"{item.Name}이(가) 부족합니다.";
+            return;
+        }
+
+        target.CurrentHealth = Math.Min(target.MaxHealth, target.CurrentHealth + item.HealAmount);
+        _effectFlashTimer = 0.12f;
+        EnemyTurn(context, encounter, $"{target.Nickname}에게 {item.Name}을(를) 사용했다.");
     }
 
     private void UpdateSwitchSelection(GameContext context, Encounter encounter)
     {
-        var party = context.Session.Party.Members;
-        _switchSelection = Math.Clamp(_switchSelection, 0, Math.Max(0, party.Count - 1));
-
-        if (context.Input.WasPressed(Keys.Up) || context.Input.WasPressed(Keys.W))
+        var party = context.Session.Party;
+        if (IsUpPressed(context))
         {
             _switchSelection = (_switchSelection + party.Count - 1) % party.Count;
         }
 
-        if (context.Input.WasPressed(Keys.Down) || context.Input.WasPressed(Keys.S))
+        if (IsDownPressed(context))
         {
             _switchSelection = (_switchSelection + 1) % party.Count;
         }
@@ -267,142 +441,150 @@ public sealed class BattleState : IGameState
         if (!_forcedSwitch && context.Input.WasPressed(Keys.Escape))
         {
             _selectingSwitch = false;
-            _resultMessage = $"{encounter.OpponentCreature.Nickname}이(가) 빈틈을 보고 있다.";
+            _resultMessage = "교체를 취소했습니다.";
             return;
         }
 
-        if (!context.Input.WasPressed(Keys.Enter) && !context.Input.WasPressed(Keys.Space))
+        if (!IsConfirmPressed(context))
         {
             return;
         }
 
-        if (!context.Session.Party.CanSwitchTo(_switchSelection))
+        if (!party.CanSwitchTo(_switchSelection))
         {
-            _resultMessage = "지금은 그 몬스터로 교체할 수 없습니다.";
+            _resultMessage = "그 동료는 지금 교체할 수 없습니다.";
             return;
         }
 
-        context.Audio.PlayConfirm();
-        context.Session.Party.SwitchTo(_switchSelection);
+        party.SwitchTo(_switchSelection);
+        _selectingSwitch = false;
+        var switchedName = party.ActiveCreature.Nickname;
         BindMoveSets(context, encounter);
-        var active = context.Session.Party.ActiveCreature;
 
         if (_forcedSwitch)
         {
             _forcedSwitch = false;
-            _selectingSwitch = false;
-            _resultMessage = $"가라, {active.Nickname}!";
-            context.Session.StatusMessage = $"{active.Nickname}을(를) 내보냈다.";
+            _resultMessage = $"{switchedName}을(를) 다시 전장으로 내보냈다.";
             return;
         }
 
-        var enemyMove = ChooseEnemyMove();
-        var playerSpecies = context.Definitions.Species[active.SpeciesId];
-        var modifier = TypeChart.GetModifier(enemyMove.TypeId, playerSpecies.PrimaryTypeId);
-        var enemyDamage = CalculateDamage(encounter.OpponentCreature.Level, active.Level, enemyMove.Power, modifier);
-        active.CurrentHealth = Math.Max(0, active.CurrentHealth - enemyDamage);
-
-        if (active.IsFainted)
-        {
-            if (context.Session.Party.HasSwitchOption())
-            {
-                _resultMessage = $"{active.Nickname}은(는) 교체 직후 {encounter.OpponentCreature.Nickname}의 {enemyMove.Name}에 맞아 쓰러졌다. 다른 몬스터를 골라야 한다.";
-                context.Session.StatusMessage = $"{active.Nickname}이(가) 쓰러졌다.";
-                _forcedSwitch = true;
-                return;
-            }
-
-            ResolveDefeat(context, $"{active.Nickname}은(는) 교체 직후 {encounter.OpponentCreature.Nickname}의 {enemyMove.Name}을(를) 버티지 못했다.");
-            return;
-        }
-
-        _selectingSwitch = false;
-        _resultMessage = $"{active.Nickname}을(를) 내보냈다. 하지만 {encounter.OpponentCreature.Nickname}의 {enemyMove.Name}으로 {enemyDamage} 피해를 받았다. {GetEffectText(modifier)}";
-        context.Session.StatusMessage = $"{active.Nickname}을(를) 내보냈다.";
+        EnemyTurn(context, encounter, $"{switchedName}을(를) 전장으로 교체했다.");
     }
 
-    private void ResolveMoveAttack(GameContext context, Encounter encounter, MoveDefinition move)
+    private void ResolveEnemyDefeat(GameContext context, Encounter encounter, string leadMessage)
     {
-        var player = context.Session.Party.ActiveCreature;
-        var enemySpecies = context.Definitions.Species[encounter.OpponentCreature.SpeciesId];
-        var modifier = TypeChart.GetModifier(move.TypeId, enemySpecies.PrimaryTypeId);
-        var damage = CalculateDamage(player.Level, encounter.OpponentCreature.Level, move.Power, modifier);
-        context.Audio.PlayConfirm();
+        var message = $"{leadMessage} {encounter.OpponentCreature.Nickname}이(가) 쓰러졌다.";
+        if (encounter.IsTrainerBattle && encounter.HasRemainingOpponents)
+        {
+            var next = encounter.AdvanceToNextOpponent();
+            BindMoveSets(context, encounter);
+            _effectFlashTimer = 0.14f;
+            _resultMessage = $"{message} {encounter.OpponentName}은(는) {next.Nickname}을(를) 내보냈다.";
+            return;
+        }
 
+        var rewardText = AwardExperience(context, encounter, message);
+        if (encounter.IsTrainerBattle)
+        {
+            context.Session.Progression.TryAddFlag(encounter.TrainerDefeatedFlag);
+            context.Session.Progression.TryAddFlag(encounter.TrainerVictoryFlag);
+            context.Session.StatusMessage = $"{encounter.OpponentName}와의 승부에서 이겼다.";
+            _resultMessage = $"{rewardText} 승부에서 이겼다!";
+        }
+        else
+        {
+            context.Session.StatusMessage = "야생 몬스터와의 전투를 마쳤다.";
+            _resultMessage = rewardText;
+        }
+
+        _awaitingDismiss = true;
+    }
+
+    private void ResolveSuperMove(GameContext context, Encounter encounter)
+    {
+        if (_superGauge < 100f)
+        {
+            _resultMessage = "필살기 게이지가 아직 가득 차지 않았습니다.";
+            return;
+        }
+
+        var player = context.Session.Party.ActiveCreature;
+        var playerType = context.Definitions.Species[player.SpeciesId].PrimaryTypeId;
+        var enemyType = context.Definitions.Species[encounter.OpponentCreature.SpeciesId].PrimaryTypeId;
+        var modifier = TypeChart.GetModifier(playerType, enemyType);
+        var damage = BattleMoveHelper.CalculateDamage(player.Level + 4, encounter.OpponentCreature.Level, 15, modifier);
         encounter.OpponentCreature.CurrentHealth = Math.Max(0, encounter.OpponentCreature.CurrentHealth - damage);
-        var leadMessage = $"{player.Nickname}의 {move.Name}! {damage} 피해. {GetEffectText(modifier)}";
+        _superGauge = 0f;
+        TriggerEnemyImpact(playerType, 0.18f);
+        var lead = $"{player.Nickname}의 {BattleText.SuperMoveName(playerType)}! {damage} 피해. {BattleText.EffectText(modifier)}";
 
         if (encounter.OpponentCreature.IsFainted)
         {
-            if (encounter.IsTrainerBattle)
-            {
-                context.Session.Progression.TryAddFlag(encounter.TrainerDefeatedFlag);
-                context.Session.Progression.TryAddFlag(encounter.TrainerVictoryFlag);
-                context.Session.Money += 90;
-                _resultMessage = $"{leadMessage} 트레이너 {encounter.OpponentName}을(를) 이겼다!";
-                context.Session.StatusMessage = $"트레이너 {encounter.OpponentName}에게 승리하고 90원을 받았다.";
-            }
-            else
-            {
-                _resultMessage = $"{leadMessage} 야생 {encounter.OpponentCreature.Nickname}이(가) 쓰러졌다.";
-                context.Session.StatusMessage = $"{encounter.OpponentCreature.Nickname}을(를) 쓰러뜨렸다.";
-            }
-
-            _awaitingDismiss = true;
+            ResolveEnemyDefeat(context, encounter, lead);
             return;
         }
 
-        EnemyTurn(context, encounter, leadMessage);
+        EnemyTurn(context, encounter, lead);
     }
 
     private void ResolveCapture(GameContext context, Encounter encounter)
     {
-        context.Audio.PlayConfirm();
-
         if (encounter.IsTrainerBattle)
         {
             _resultMessage = "트레이너의 몬스터는 포획할 수 없습니다.";
-            context.Session.StatusMessage = _resultMessage;
-            _awaitingDismiss = true;
             return;
         }
 
-        if (!context.Session.Inventory.UseOne("capture-sphere"))
+        const string captureItemId = "capture-sphere";
+        if (!context.Definitions.Items.TryGetValue(captureItemId, out var sphere))
         {
-            _resultMessage = "포획구가 필요합니다.";
+            _resultMessage = "포획구 정의를 찾지 못했습니다.";
             return;
         }
 
-        var healthRatio = 1f - ((float)encounter.OpponentCreature.CurrentHealth / encounter.OpponentCreature.MaxHealth);
-        var chance = Math.Clamp(0.35f + (healthRatio * 0.4f) + (0.03f * (5 - encounter.OpponentCreature.Level)), 0.25f, 0.88f);
-        if (Random.Shared.NextDouble() <= chance)
+        if (!context.Session.Inventory.UseOne(captureItemId))
         {
-            if (context.Session.Party.IsFull)
-            {
-                var stored = CloneCreature(encounter);
-                context.Session.Storage.Add(stored);
-                _resultMessage = $"{stored.Nickname} 포획 성공! 보관함으로 전송했다.";
-                context.Session.StatusMessage = $"{stored.Nickname}을(를) 보관함으로 보냈다.";
-                _awaitingDismiss = true;
-                return;
-            }
+            _resultMessage = $"{sphere.Name}가 부족합니다.";
+            return;
+        }
 
-            var captured = CloneCreature(encounter);
+        var enemy = encounter.OpponentCreature;
+        var healthRatio = enemy.MaxHealth <= 0 ? 1f : (float)enemy.CurrentHealth / enemy.MaxHealth;
+        var chance = Math.Clamp(0.28f + ((1f - healthRatio) * 0.6f), 0.2f, 0.88f);
+        _effectFlashTimer = 0.18f;
+
+        if (Random.Shared.NextSingle() > chance)
+        {
+            EnemyTurn(context, encounter, $"{sphere.Name}를 던졌다. 하지만 포획에 실패했다.");
+            return;
+        }
+
+        var captured = BattleMoveHelper.CloneCreature(enemy);
+        if (context.Session.Party.IsFull)
+        {
+            context.Session.Storage.Add(captured);
+            _resultMessage = $"{captured.Nickname}을(를) 포획했다! 파티가 가득 차서 PC 보관함으로 보냈다.";
+        }
+        else
+        {
             context.Session.Party.Add(captured);
-            _resultMessage = $"{captured.Nickname} 포획 성공! 파티에 합류했다.";
-            context.Session.StatusMessage = $"{captured.Nickname}을(를) 포획했다.";
-            _awaitingDismiss = true;
-            return;
+            _resultMessage = $"{captured.Nickname}을(를) 포획했다! 파티에 합류했다.";
         }
 
-        EnemyTurn(context, encounter, $"{encounter.OpponentCreature.Nickname}이(가) 포획구를 튕겨 내고 버텼다.");
+        context.Session.StatusMessage = $"{captured.Nickname} 포획 성공.";
+        _awaitingDismiss = true;
     }
 
     private void ResolveRun(GameContext context, Encounter encounter)
     {
-        context.Audio.PlayConfirm();
-        _resultMessage = $"{encounter.OpponentCreature.Nickname}에게서 무사히 빠져나왔다.";
-        context.Session.StatusMessage = _resultMessage;
+        if (encounter.IsTrainerBattle)
+        {
+            _resultMessage = "트레이너 승부에서는 도망칠 수 없습니다.";
+            return;
+        }
+
+        context.Session.StatusMessage = "전투에서 무사히 벗어났다.";
+        _resultMessage = "무사히 도망쳤다.";
         _awaitingDismiss = true;
     }
 
@@ -410,356 +592,423 @@ public sealed class BattleState : IGameState
     {
         if (!context.Session.Party.HasSwitchOption())
         {
-            _resultMessage = "지금 교체할 다른 몬스터가 없습니다.";
+            if (forced)
+            {
+                ResolveDefeat(context, "더 이상 싸울 수 있는 동료가 없다.");
+            }
+            else
+            {
+                _resultMessage = "교체할 수 있는 동료가 없습니다.";
+            }
+
             return;
         }
 
-        _forcedSwitch = forced;
         _selectingSwitch = true;
-        _selectingMoves = false;
-        _selectingItems = false;
-        _switchSelection = context.Session.Party.ActiveIndex;
-        _resultMessage = forced ? "몬스터가 쓰러졌습니다. 다른 몬스터를 고르세요." : "교체할 몬스터를 고르세요.";
+        _forcedSwitch = forced;
+        _switchSelection = FindFirstSwitchOption(context);
+        _resultMessage = forced ? "다음으로 보낼 동료를 고르세요." : "교체할 동료를 고르세요.";
     }
 
     private void EnemyTurn(GameContext context, Encounter encounter, string leadMessage)
     {
+        if (encounter.OpponentCreature.IsFainted)
+        {
+            _resultMessage = leadMessage;
+            return;
+        }
+
+        var enemy = encounter.OpponentCreature;
+        var enemyMove = BattleMoveHelper.ChooseEnemyMove(enemy, _enemyMoves);
+        if (enemyMove is null)
+        {
+            _resultMessage = $"{leadMessage} 하지만 상대는 움직이지 못했다.";
+            return;
+        }
+
+        BattleMoveHelper.SpendPp(enemy, enemyMove);
+        if (!BattleMoveHelper.CheckAccuracy(enemyMove))
+        {
+            _resultMessage = $"{leadMessage} {enemy.Nickname}의 {enemyMove.Name}! 하지만 빗나갔다.";
+            return;
+        }
+
         var player = context.Session.Party.ActiveCreature;
-        var enemyMove = ChooseEnemyMove();
-        var playerSpecies = context.Definitions.Species[player.SpeciesId];
-        var modifier = TypeChart.GetModifier(enemyMove.TypeId, playerSpecies.PrimaryTypeId);
-        var damage = CalculateDamage(encounter.OpponentCreature.Level, player.Level, enemyMove.Power, modifier);
+        var playerType = context.Definitions.Species[player.SpeciesId].PrimaryTypeId;
+        var modifier = TypeChart.GetModifier(enemyMove.TypeId, playerType);
+        var damage = BattleMoveHelper.CalculateDamage(enemy.Level, player.Level, enemyMove.Power, modifier);
         player.CurrentHealth = Math.Max(0, player.CurrentHealth - damage);
+        AddSuperGauge(12f);
+        TriggerPlayerImpact(enemyMove.TypeId);
 
-        var counterMessage = $"{encounter.OpponentCreature.Nickname}의 {enemyMove.Name}! {damage} 피해. {GetEffectText(modifier)}";
-        if (player.IsFainted)
+        var attackText = $"{enemy.Nickname}의 {enemyMove.Name}! {damage} 피해. {BattleText.EffectText(modifier)}";
+        if (!player.IsFainted)
         {
-            if (context.Session.Party.HasSwitchOption())
-            {
-                _resultMessage = $"{leadMessage} {counterMessage} {player.Nickname}이(가) 쓰러졌다.";
-                context.Session.StatusMessage = $"{player.Nickname}이(가) 쓰러졌다.";
-                OpenSwitchMenu(context, true);
-                return;
-            }
-
-            ResolveDefeat(context, $"{leadMessage} {counterMessage}");
+            _resultMessage = $"{leadMessage} {attackText}";
             return;
         }
 
-        _resultMessage = $"{leadMessage} {counterMessage}";
-        context.Session.StatusMessage = _resultMessage;
+        var faintText = $"{leadMessage} {attackText} {player.Nickname}이(가) 쓰러졌다.";
+        if (context.Session.Party.HasSwitchOption())
+        {
+            _resultMessage = $"{faintText} 다음 동료를 골라야 한다.";
+            OpenSwitchMenu(context, true);
+            return;
+        }
+
+        ResolveDefeat(context, faintText);
     }
 
-    private void ResolveDefeat(GameContext context, string leadMessage)
+    private void ResolveDefeat(GameContext context, string message)
     {
-        context.Session.Party.RecoverAfterDefeat();
-        context.Session.CurrentMapId = context.Session.RecoveryMapId;
-        context.Session.PlayerTilePosition = context.Session.RecoveryTilePosition;
-        context.Session.FacingDirection = new Point(0, 1);
-        context.Session.ReturnState = GameStateId.World;
-        _resultMessage = $"{leadMessage} 파티 전원이 쓰러져 회복 지점으로 돌아가 모두 회복되었다.";
-        context.Session.StatusMessage = "회복 지점으로 돌아왔습니다.";
+        _returnAfterDismiss = true;
+        _resultMessage = $"{message} 눈앞이 깜깜해졌다. Enter를 누르면 마지막 회복 지점으로 돌아간다.";
         _awaitingDismiss = true;
-        _selectingSwitch = false;
-        _selectingMoves = false;
-        _forcedSwitch = false;
     }
 
-    private void DrawBattleBackdrop(GameContext context)
+    private string AwardExperience(GameContext context, Encounter encounter, string prefix)
     {
-        context.PrimitiveRenderer.Fill(new Rectangle(0, 0, context.Viewport.Width, context.Viewport.Height), new Color(206, 226, 200));
-        context.PrimitiveRenderer.Fill(new Rectangle(0, 0, context.Viewport.Width, 264), new Color(182, 210, 176));
-        context.PrimitiveRenderer.Fill(new Rectangle(0, 264, context.Viewport.Width, 276), new Color(104, 142, 104));
-        context.PrimitiveRenderer.Fill(new Rectangle(52, 108, 286, 82), new Color(230, 236, 208));
-        context.PrimitiveRenderer.Fill(new Rectangle(520, 270, 334, 88), new Color(224, 230, 202));
-        context.PrimitiveRenderer.Fill(new Rectangle(36, 386, 888, 126), new Color(16, 24, 34, 238));
-        context.PrimitiveRenderer.Outline(new Rectangle(36, 386, 888, 126), 3, new Color(208, 184, 100));
-    }
+        var player = context.Session.Party.ActiveCreature;
+        var enemy = encounter.OpponentCreature;
+        var gained = Math.Max(4, (enemy.Level * (encounter.IsTrainerBattle ? 4 : 3)) + 6);
+        player.Experience += gained;
 
-    private void DrawMessagePanel(GameContext context, GameSession session, Encounter? encounter)
-    {
-        context.TextRenderer.DrawText(new Vector2(62, 408), _resultMessage, 2, new Color(236, 236, 224));
-        context.TextRenderer.DrawText(new Vector2(62, 438), $"파티 {session.Party.Count}/{Domain.Party.Party.MaxSize}  보관함 {session.Storage.Count}  소지금 {session.Money}", 2, new Color(212, 220, 226));
-
-        if (encounter is not null)
+        var message = $"{prefix} 경험치 {gained}을(를) 얻었다.";
+        var leveledUp = false;
+        while (player.Experience >= Creature.GetExperienceForNextLevel(player.Level))
         {
-            context.TextRenderer.DrawText(
-                new Vector2(62, 468),
-                encounter.IsTrainerBattle ? "트레이너전에서는 포획이 불가능합니다." : "야생전에서는 포획과 도주가 가능합니다.",
-                1,
-                new Color(202, 214, 222));
+            player.Experience -= Creature.GetExperienceForNextLevel(player.Level);
+            var previousMaxHealth = player.MaxHealth;
+            player.Level++;
+            player.MaxHealth = Creature.CalculateMaxHealth(player.Level);
+            player.CurrentHealth = Math.Min(player.MaxHealth, player.CurrentHealth + (player.MaxHealth - previousMaxHealth) + 4);
+            var healthGain = player.MaxHealth - previousMaxHealth;
+            leveledUp = true;
+            message += $" {player.Nickname}???덈꺼??{player.Level}???섏뿀怨?理쒕?? HP媛 {healthGain}留뚰겮 ?ㅼ뿬?듬땲??";
+        }
+
+        if (leveledUp)
+        {
+            message += $" {player.Nickname}의 레벨이 {player.Level}이 되었다!";
+        }
+
+        return message;
+    }
+
+    private void DrawBackdrop(GameContext context)
+    {
+        var viewport = context.Viewport;
+        context.PrimitiveRenderer.Fill(new Rectangle(0, 0, viewport.Width, viewport.Height), new Color(198, 226, 218));
+        context.PrimitiveRenderer.Fill(new Rectangle(0, 0, viewport.Width, 188), new Color(170, 214, 202));
+        context.PrimitiveRenderer.Fill(new Rectangle(0, 188, viewport.Width, 156), new Color(122, 172, 130));
+        context.PrimitiveRenderer.Fill(new Rectangle(0, 344, viewport.Width, viewport.Height - 344), new Color(100, 146, 108));
+        context.PrimitiveRenderer.Fill(new Rectangle(0, 318, viewport.Width, 18), new Color(148, 196, 134, 210));
+        context.PrimitiveRenderer.Fill(new Rectangle(0, 332, viewport.Width, 10), new Color(90, 122, 86, 170));
+
+        for (var i = 0; i < 5; i++)
+        {
+            var x = 52 + (i * 178);
+            context.PrimitiveRenderer.Fill(new Rectangle(x, 84 + ((i % 2) * 12), 80, 22), new Color(196, 230, 216, 140));
         }
     }
 
-    private void DrawHintLine(GameContext context, string hint)
+    private void DrawCreatureShadow(GameContext context, Rectangle rect, float impactTimer)
     {
-        context.TextRenderer.DrawText(new Vector2(62, 490), hint, 1, new Color(212, 220, 226));
+        var alpha = impactTimer > 0f ? 150 : 108;
+        context.PrimitiveRenderer.Fill(rect, new Color(26, 40, 32, alpha));
     }
 
-    private void DrawActionPanel(GameContext context)
+    private void DrawCreatureSprite(GameContext context, string speciesId, bool backSprite, Rectangle rect, float impactTimer)
     {
-        var panel = new Rectangle(646, 390, 252, 118);
-        context.PrimitiveRenderer.Fill(panel, new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(panel, 3, new Color(208, 184, 108));
-        context.TextRenderer.DrawText(new Vector2(panel.X + 20, panel.Y + 16), "행동 선택", 2, new Color(248, 238, 188));
-
-        for (var i = 0; i < _options.Length; i++)
+        context.Art.DrawCreature(context.SpriteBatch, speciesId, backSprite, rect);
+        if (impactTimer > 0f)
         {
-            var selected = i == _selected;
-            var itemRect = new Rectangle(panel.X + 16, panel.Y + 44 + (i * 13), 220, 12);
-            if (selected)
+            context.PrimitiveRenderer.Outline(rect, 2, new Color(255, 248, 216, 180));
+        }
+    }
+
+    private void DrawCard(GameContext context, Rectangle rect, Creature creature, string label, bool playerSide)
+    {
+        if (playerSide)
+        {
+            rect = new Rectangle(rect.Right + 18, rect.Y + 28, 232, rect.Height - 6);
+        }
+
+        context.UiSkin.DrawPanel(context.SpriteBatch, rect);
+        var species = context.Definitions.Species[creature.SpeciesId];
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 12), creature.Nickname, 2, new Color(244, 242, 232));
+        context.TextRenderer.DrawText(new Vector2(rect.Right - 88, rect.Y + 12), $"Lv {creature.Level}", 2, new Color(226, 232, 238));
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 38), $"{label}  {species.Name}", 1, new Color(210, 224, 228));
+
+        var hpRect = new Rectangle(rect.X + 18, rect.Y + 58, playerSide ? 204 : 188, 16);
+        context.TextRenderer.DrawText(new Vector2(hpRect.X, hpRect.Y - 18), "HP", 1, new Color(226, 230, 188));
+        DrawHpBar(context, hpRect, creature.CurrentHealth, creature.MaxHealth);
+
+        if (playerSide)
+        {
+            context.TextRenderer.DrawText(new Vector2(rect.Right - 118, rect.Y + 58), $"{creature.CurrentHealth}/{creature.MaxHealth}", 1, new Color(220, 228, 234));
+            context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 78), "EXP", 1, new Color(226, 230, 188));
+            context.UiSkin.DrawExperienceBar(context.SpriteBatch, new Rectangle(rect.X + 52, rect.Y + 80, 164, 10), GetExperienceRatio(creature));
+            context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 96), "SP", 1, new Color(246, 228, 152));
+            context.UiSkin.DrawExperienceBar(context.SpriteBatch, new Rectangle(rect.X + 52, rect.Y + 98, 164, 10), _superGauge / 100f);
+        }
+    }
+
+    private void DrawMessage(GameContext context, Encounter? encounter)
+    {
+        var rect = new Rectangle(34, 426, 540, 90);
+        context.UiSkin.DrawPanel(context.SpriteBatch, rect);
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 14), _resultMessage, 2, new Color(232, 236, 240));
+        if (_awaitingDismiss)
+        {
+            context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), "Enter로 전투를 마칩니다.", 1, new Color(246, 226, 152));
+            return;
+        }
+
+        var helper = encounter is not null && encounter.IsTrainerBattle
+            ? "Enter 선택  ESC 도주 시도  트레이너전은 포획 불가"
+            : "Enter 선택  ESC 도주  HP를 깎을수록 포획이 쉬워집니다";
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), helper, 1, new Color(208, 220, 228));
+    }
+
+    private void DrawActions(GameContext context)
+    {
+        DrawListPanel(
+            context,
+            new Rectangle(624, 350, 238, 166),
+            "행동",
+            _options,
+            _selected,
+            option => option,
+            "위아래 선택  Enter 결정");
+    }
+
+    private void DrawMoves(GameContext context)
+    {
+        DrawListPanel(
+            context,
+            new Rectangle(574, 336, 288, 180),
+            "기술",
+            _playerMoves,
+            _moveSelection,
+            move =>
             {
-                context.PrimitiveRenderer.Fill(itemRect, new Color(214, 188, 108));
+                var pp = BattleMoveHelper.GetCurrentPp(context.Session.Party.ActiveCreature, move);
+                return $"{move.Name}  {BattleText.TypeLabel(move.TypeId)}  PP {pp}/{move.MaxPp}";
+            },
+            "ESC 취소");
+    }
+
+    private void DrawItems(GameContext context)
+    {
+        var items = BattleMoveHelper.GetBattleUsableItems(context);
+        DrawListPanel(
+            context,
+            new Rectangle(588, 342, 274, 174),
+            "가방",
+            items,
+            _itemSelection,
+            item => $"{item.Name}  x{context.Session.Inventory.GetQuantity(item.Id)}  +{item.HealAmount}HP",
+            items.Count == 0 ? "회복 아이템이 없습니다." : "대상을 골라 회복합니다");
+    }
+
+    private void DrawTargets(GameContext context)
+    {
+        DrawListPanel(
+            context,
+            new Rectangle(560, 300, 302, 216),
+            "대상 선택",
+            context.Session.Party.Members,
+            _itemTargetSelection,
+            creature => $"{creature.Nickname}  HP {creature.CurrentHealth}/{creature.MaxHealth}",
+            "회복시킬 동료를 고르세요");
+    }
+
+    private void DrawSwitches(GameContext context)
+    {
+        DrawListPanel(
+            context,
+            new Rectangle(548, 286, 314, 230),
+            _forcedSwitch ? "다음 동료" : "교체",
+            context.Session.Party.Members,
+            _switchSelection,
+            creature =>
+            {
+                var marker = creature == context.Session.Party.ActiveCreature ? "선두" : creature.IsFainted ? "기절" : "대기";
+                return $"{creature.Nickname}  Lv {creature.Level}  {marker}";
+            },
+            _forcedSwitch ? "쓰러진 뒤에는 반드시 교체해야 합니다." : "ESC 취소");
+    }
+
+    private void DrawListPanel<T>(GameContext context, Rectangle rect, string title, IReadOnlyList<T> rows, int selectedIndex, Func<T, string> formatter, string footer)
+    {
+        context.UiSkin.DrawPanel(context.SpriteBatch, rect);
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 12), title, 2, new Color(248, 236, 182));
+
+        if (rows.Count == 0)
+        {
+            context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 54), "표시할 항목이 없습니다.", 1, new Color(218, 224, 232));
+            context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), footer, 1, new Color(208, 220, 228));
+            return;
+        }
+
+        const int rowHeight = 24;
+        var contentTop = rect.Y + 40;
+        var contentBottom = rect.Bottom - 36;
+        var visibleRows = Math.Max(1, (contentBottom - contentTop) / rowHeight);
+        var maxStart = Math.Max(0, rows.Count - visibleRows);
+        var startIndex = Math.Clamp(selectedIndex - visibleRows + 1, 0, maxStart);
+
+        var y = contentTop;
+        for (var i = 0; i < visibleRows && (startIndex + i) < rows.Count; i++)
+        {
+            var rowIndex = startIndex + i;
+            var rowRect = new Rectangle(rect.X + 10, y - 3, rect.Width - 20, 22);
+            if (rowIndex == selectedIndex)
+            {
+                context.UiSkin.DrawSelection(context.SpriteBatch, rowRect);
             }
 
-            context.TextRenderer.DrawText(
-                new Vector2(itemRect.X + 8, itemRect.Y - 4),
-                _options[i],
-                1,
-                selected ? new Color(20, 24, 26) : new Color(220, 228, 232));
-        }
-    }
-
-    private void DrawSwitchPanel(GameContext context)
-    {
-        var panel = new Rectangle(596, 194, 308, 192);
-        context.PrimitiveRenderer.Fill(panel, new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(panel, 3, new Color(208, 184, 108));
-        context.TextRenderer.DrawText(new Vector2(panel.X + 22, panel.Y + 16), "교체할 몬스터", 2, new Color(248, 238, 188));
-
-        var y = panel.Y + 52;
-        for (var i = 0; i < context.Session.Party.Members.Count; i++)
-        {
-            var creature = context.Session.Party.Members[i];
-            var selected = i == _switchSelection;
-            var active = i == context.Session.Party.ActiveIndex;
-            var color = creature.IsFainted ? new Color(150, 120, 120) : selected ? new Color(250, 226, 132) : new Color(220, 228, 232);
-            var prefix = active ? "선두" : creature.IsFainted ? "기절" : "대기";
-            context.TextRenderer.DrawText(new Vector2(panel.X + 22, y), $"{prefix} {creature.Nickname}", 2, color);
-            context.TextRenderer.DrawText(new Vector2(panel.X + 178, y), $"HP {creature.CurrentHealth}/{creature.MaxHealth}", 1, color);
-            y += 28;
-        }
-    }
-
-    private void DrawMovePanel(GameContext context)
-    {
-        var panel = new Rectangle(560, 362, 344, 146);
-        context.PrimitiveRenderer.Fill(panel, new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(panel, 3, new Color(208, 184, 108));
-        context.TextRenderer.DrawText(new Vector2(panel.X + 22, panel.Y + 14), "기술 선택", 2, new Color(248, 238, 188));
-
-        var y = panel.Y + 48;
-        for (var i = 0; i < _playerMoves.Length; i++)
-        {
-            var move = _playerMoves[i];
-            var selected = i == _moveSelection;
-            var color = selected ? new Color(250, 226, 132) : new Color(220, 228, 232);
-            context.TextRenderer.DrawText(new Vector2(panel.X + 22, y), move.Name, 2, color);
-            context.TextRenderer.DrawText(new Vector2(panel.X + 170, y), GetTypeLabel(move.TypeId), 1, color);
-            context.TextRenderer.DrawText(new Vector2(panel.X + 246, y), $"위력 {move.Power}", 1, color);
-            y += 28;
-        }
-    }
-
-    private void DrawItemPanel(GameContext context)
-    {
-        var panel = new Rectangle(560, 372, 344, 116);
-        context.PrimitiveRenderer.Fill(panel, new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(panel, 3, new Color(208, 184, 108));
-        context.TextRenderer.DrawText(new Vector2(panel.X + 22, panel.Y + 14), "가방", 2, new Color(248, 238, 188));
-        var selectedColor = _itemSelection == 0 ? new Color(250, 226, 132) : new Color(220, 228, 232);
-        context.TextRenderer.DrawText(new Vector2(panel.X + 22, panel.Y + 52), "상처약", 2, selectedColor);
-        context.TextRenderer.DrawText(new Vector2(panel.X + 188, panel.Y + 56), $"남은 수량 {context.Session.Inventory.GetQuantity("potion")}", 1, selectedColor);
-    }
-
-    private void DrawBattleCard(GameContext context, Rectangle rect, Creature creature, string typeId, string label, bool playerSide)
-    {
-        context.PrimitiveRenderer.Fill(rect, new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(rect, 3, new Color(214, 188, 108));
-        context.TextRenderer.DrawText(new Vector2(rect.X + 20, rect.Y + 16), label, 2, new Color(244, 236, 188));
-        context.TextRenderer.DrawText(new Vector2(rect.X + 20, rect.Y + 44), creature.Nickname, 3, Color.White);
-        context.TextRenderer.DrawText(new Vector2(rect.X + 20, rect.Y + 78), $"Lv {creature.Level}  속성 {GetTypeLabel(typeId)}", 2, new Color(218, 228, 234));
-        DrawHpBar(
-            context,
-            new Rectangle(rect.X + 20, rect.Y + 108, playerSide ? 220 : 210, 12),
-            creature.CurrentHealth,
-            creature.MaxHealth,
-            playerSide ? new Color(78, 186, 92) : new Color(212, 86, 82),
-            new Color(72, 88, 62));
-        context.TextRenderer.DrawText(new Vector2(rect.X + 20, rect.Y + 122), $"HP {creature.CurrentHealth}/{creature.MaxHealth}", 1, new Color(214, 224, 228));
-    }
-
-    private void DrawCreatureStage(GameContext context, Rectangle rect, string speciesId, bool playerSide)
-    {
-        var palette = GetEncounterPalette(speciesId);
-        var stageColor = playerSide ? new Color(214, 228, 188) : new Color(228, 236, 206);
-        context.PrimitiveRenderer.Fill(rect, stageColor);
-        context.PrimitiveRenderer.Outline(rect, 2, new Color(124, 130, 96));
-
-        var shadowHeight = playerSide ? 22 : 18;
-        context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 34, rect.Bottom - shadowHeight, rect.Width - 68, 16), new Color(88, 104, 72, 120));
-
-        switch (speciesId)
-        {
-            case "sproutle":
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 112, rect.Y + 20, 54, 40), palette.Primary);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 94, rect.Y + 52, 92, 44), palette.Secondary);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 126, rect.Y + 10, 18, 20), palette.Accent);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 108, rect.Y + 40, 10, 8), new Color(36, 42, 28));
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 152, rect.Y + 40, 10, 8), new Color(36, 42, 28));
-                break;
-            case "brookit":
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 90, rect.Y + 40, 102, 44), palette.Primary);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 112, rect.Y + 22, 56, 26), palette.Secondary);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 178, rect.Y + 48, 28, 18), palette.Accent);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 126, rect.Y + 44, 8, 6), new Color(28, 38, 54));
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 144, rect.Y + 44, 8, 6), new Color(28, 38, 54));
-                break;
-            default:
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 108, rect.Y + 18, 58, 38), palette.Primary);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 90, rect.Y + 50, 100, 50), palette.Secondary);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 176, rect.Y + 22, 24, 18), palette.Accent);
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 122, rect.Y + 34, 8, 8), new Color(44, 36, 28));
-                context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 146, rect.Y + 34, 8, 8), new Color(44, 36, 28));
-                break;
-        }
-    }
-
-    private void BindMoveSets(GameContext context, Encounter encounter)
-    {
-        _boundActiveCreature = context.Session.Party.ActiveCreature;
-        _playerMoves = ResolveMoves(context, _boundActiveCreature.SpeciesId);
-        _enemyMoves = ResolveMoves(context, encounter.OpponentCreature.SpeciesId);
-        _moveSelection = Math.Clamp(_moveSelection, 0, _playerMoves.Length - 1);
-    }
-
-    private MoveDefinition[] ResolveMoves(GameContext context, string speciesId)
-    {
-        if (!context.Definitions.Species.TryGetValue(speciesId, out var species) || species.MoveIds.Count == 0)
-        {
-            return FallbackMoves;
+            var color = rowIndex == selectedIndex ? new Color(24, 34, 48) : new Color(214, 222, 230);
+            context.TextRenderer.DrawText(new Vector2(rect.X + 20, y), formatter(rows[rowIndex]), 1, color);
+            y += rowHeight;
         }
 
-        var moves = new MoveDefinition[species.MoveIds.Count];
-        for (var i = 0; i < species.MoveIds.Count; i++)
-        {
-            moves[i] = context.Definitions.Moves.TryGetValue(species.MoveIds[i], out var move)
-                ? move
-                : FallbackMoves[0];
-        }
-
-        return moves;
+        DrawScrollIndicator(context, rect, startIndex, visibleRows, rows.Count);
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), footer, 1, new Color(208, 220, 228));
     }
 
-    private MoveDefinition ChooseEnemyMove()
+    private static void DrawScrollIndicator(GameContext context, Rectangle rect, int startIndex, int visibleRows, int totalRows)
     {
-        return _enemyMoves[Random.Shared.Next(_enemyMoves.Length)];
-    }
-
-    private void UseBattlePotion(GameContext context, Encounter encounter)
-    {
-        var item = context.Definitions.Items["potion"];
-        var player = context.Session.Party.ActiveCreature;
-        if (player.CurrentHealth >= player.MaxHealth)
+        if (totalRows <= visibleRows)
         {
-            _resultMessage = $"{player.Nickname}은(는) 이미 체력이 가득합니다.";
             return;
         }
 
-        if (!context.Session.Inventory.UseOne(item.Id))
+        if (startIndex > 0)
         {
-            _resultMessage = "상처약이 없습니다.";
-            return;
+            context.TextRenderer.DrawText(new Vector2(rect.Right - 30, rect.Y + 16), "▲", 1, new Color(246, 226, 152));
         }
 
-        player.CurrentHealth = Math.Min(player.MaxHealth, player.CurrentHealth + item.HealAmount);
-        EnemyTurn(context, encounter, $"{player.Nickname}에게 상처약을 사용했다.");
-    }
-
-    private static int CalculateDamage(int attackerLevel, int defenderLevel, int power, float modifier)
-    {
-        var baseDamage = power + Random.Shared.Next(1, 4) + Math.Max(0, attackerLevel - defenderLevel);
-        return Math.Max(1, (int)MathF.Round(baseDamage * modifier));
-    }
-
-    private static string GetTypeLabel(string typeId)
-    {
-        return typeId switch
+        if (startIndex + visibleRows < totalRows)
         {
-            "leaf" => "풀",
-            "flame" => "불꽃",
-            "wave" => "물결",
-            _ => "무속성"
-        };
-    }
-
-    private static string GetEffectText(float modifier)
-    {
-        if (modifier >= 1.2f)
-        {
-            return "효과가 뛰어나다!";
-        }
-
-        if (modifier <= 0.8f)
-        {
-            return "효과가 약하다.";
-        }
-
-        return "평범하게 들어갔다.";
-    }
-
-    private static void DrawHpBar(GameContext context, Rectangle rect, int current, int max, Color fill, Color back)
-    {
-        context.PrimitiveRenderer.Fill(rect, back);
-        context.PrimitiveRenderer.Outline(rect, 1, new Color(24, 28, 24));
-        var safeMax = Math.Max(1, max);
-        var width = Math.Max(0, (int)((current / (float)safeMax) * (rect.Width - 2)));
-        if (width > 0)
-        {
-            context.PrimitiveRenderer.Fill(new Rectangle(rect.X + 1, rect.Y + 1, width, rect.Height - 2), fill);
+            context.TextRenderer.DrawText(new Vector2(rect.Right - 30, rect.Bottom - 30), "▼", 1, new Color(246, 226, 152));
         }
     }
 
-    private static Creature CloneCreature(Encounter encounter)
+    private static int ImpactOffset(float timer)
     {
-        var source = encounter.OpponentCreature;
-        return new Creature
-        {
-            SpeciesId = source.SpeciesId,
-            Nickname = source.Nickname,
-            Level = source.Level,
-            MaxHealth = source.MaxHealth,
-            CurrentHealth = source.CurrentHealth
-        };
+        return timer <= 0f ? 0 : (int)MathF.Round(MathF.Sin(timer * 56f) * 6f);
     }
 
-    private static EncounterPalette GetEncounterPalette(string speciesId)
+    private static int GetBattleBobOffset(float totalTime, float phase)
     {
-        return speciesId switch
+        return (int)MathF.Round(MathF.Sin((totalTime * 2.3f) + phase) * 3f);
+    }
+
+    private static int GetEntryOffset(float timer, int maxOffset)
+    {
+        if (timer <= 0f)
         {
-            "sproutle" => new EncounterPalette(new Color(82, 150, 78), new Color(136, 196, 106), new Color(224, 230, 134)),
-            "brookit" => new EncounterPalette(new Color(76, 128, 190), new Color(112, 186, 220), new Color(226, 242, 252)),
-            _ => new EncounterPalette(new Color(178, 108, 66), new Color(226, 168, 92), new Color(242, 224, 154))
-        };
+            return 0;
+        }
+
+        var ratio = Math.Clamp(timer / 0.36f, 0f, 1f);
+        return (int)MathF.Round(maxOffset * ratio);
+    }
+
+    private void AddSuperGauge(float amount)
+    {
+        _superGauge = Math.Clamp(_superGauge + amount, 0f, 100f);
+    }
+
+    private static Color GetTypeFlashColor(string typeId) => typeId switch
+    {
+        "leaf" => new Color(164, 232, 144),
+        "flame" => new Color(255, 184, 120),
+        "wave" => new Color(156, 216, 255),
+        _ => new Color(255, 255, 255)
+    };
+
+    private static int FindFirstSwitchOption(GameContext context)
+    {
+        for (var i = 0; i < context.Session.Party.Count; i++)
+        {
+            if (context.Session.Party.CanSwitchTo(i))
+            {
+                return i;
+            }
+        }
+
+        return Math.Clamp(context.Session.Party.ActiveIndex, 0, Math.Max(0, context.Session.Party.Count - 1));
+    }
+
+    private void TriggerEnemyImpact(string typeId, float flashDuration = 0.08f)
+    {
+        _enemyImpactTimer = 0.2f;
+        _effectFlashTimer = flashDuration;
+        _effectFlashColor = GetTypeFlashColor(typeId);
+    }
+
+    private void TriggerPlayerImpact(string typeId, float flashDuration = 0.08f)
+    {
+        _playerImpactTimer = 0.2f;
+        _effectFlashTimer = flashDuration;
+        _effectFlashColor = GetTypeFlashColor(typeId);
+    }
+
+    private static bool IsConfirmPressed(GameContext context)
+    {
+        return context.Input.WasPressed(Keys.Enter) || context.Input.WasPressed(Keys.Space);
+    }
+
+    private static bool IsUpPressed(GameContext context)
+    {
+        return context.Input.WasRepeated(Keys.Up) || context.Input.WasRepeated(Keys.W);
+    }
+
+    private static bool IsDownPressed(GameContext context)
+    {
+        return context.Input.WasRepeated(Keys.Down) || context.Input.WasRepeated(Keys.S);
+    }
+
+    private static float GetExperienceRatio(Creature creature)
+    {
+        var next = Creature.GetExperienceForNextLevel(creature.Level);
+        return next <= 0 ? 0f : (float)creature.Experience / next;
+    }
+
+    private static void DrawHpBar(GameContext context, Rectangle rect, int current, int max)
+    {
+        var ratio = max <= 0 ? 0f : (float)current / max;
+        context.UiSkin.DrawHealthBar(context.SpriteBatch, rect, ratio);
     }
 
     private void ResetLocalState()
     {
-        _boundEncounter = null;
-        _boundActiveCreature = null;
-        _awaitingDismiss = false;
-        _selectingSwitch = false;
-        _selectingMoves = false;
-        _selectingItems = false;
-        _forcedSwitch = false;
         _selected = 0;
         _switchSelection = 0;
         _moveSelection = 0;
         _itemSelection = 0;
-        _playerMoves = FallbackMoves;
-        _enemyMoves = FallbackMoves;
+        _itemTargetSelection = 0;
+        _awaitingDismiss = false;
+        _selectingSwitch = false;
+        _selectingMoves = false;
+        _selectingItems = false;
+        _selectingItemTarget = false;
+        _forcedSwitch = false;
+        _returnAfterDismiss = false;
         _resultMessage = string.Empty;
+        _boundEncounter = null;
+        _boundActiveCreature = null;
+        _playerMoves = [];
+        _enemyMoves = [];
+        _enemyImpactTimer = 0f;
+        _playerImpactTimer = 0f;
+        _effectFlashTimer = 0f;
+        _playerEntryTimer = 0f;
+        _enemyEntryTimer = 0f;
+        _superGauge = 0f;
+        _effectFlashColor = Color.White;
     }
-
-    private readonly record struct EncounterPalette(Color Primary, Color Secondary, Color Accent);
 }

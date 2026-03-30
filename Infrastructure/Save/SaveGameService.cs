@@ -122,13 +122,15 @@ public sealed class SaveGameService
             var progression = new GameProgression();
             progression.Restore(ProgressionFlags, BadgeCount);
 
+            var currentMap = definitions.Maps[currentMapId];
+            var recoveryMap = definitions.Maps[recoveryMapId];
             var session = new GameSession
             {
                 CurrentMapId = currentMapId,
-                PlayerTilePosition = ClampToMap(definitions.Maps[currentMapId], PlayerTilePosition.ToPoint()),
+                PlayerTilePosition = RestorePoint(currentMap, PlayerTilePosition.ToPoint()),
                 FacingDirection = FacingDirection.ToFacingPoint(),
                 RecoveryMapId = recoveryMapId,
-                RecoveryTilePosition = ClampToMap(definitions.Maps[recoveryMapId], RecoveryTilePosition.ToPoint()),
+                RecoveryTilePosition = RestorePoint(recoveryMap, RecoveryTilePosition.ToPoint()),
                 Party = party,
                 Storage = storage,
                 Inventory = inventory,
@@ -145,11 +147,33 @@ public sealed class SaveGameService
             return session;
         }
 
-        private static Point ClampToMap(Domain.World.WorldMap map, Point point)
+        private static Point RestorePoint(Domain.World.WorldMap map, Point point)
         {
-            var x = Math.Clamp(point.X, 0, Math.Max(0, map.Width - 1));
-            var y = Math.Clamp(point.Y, 0, Math.Max(0, map.Height - 1));
-            return new Point(x, y);
+            var clamped = new Point(
+                Math.Clamp(point.X, 0, Math.Max(0, map.Width - 1)),
+                Math.Clamp(point.Y, 0, Math.Max(0, map.Height - 1)));
+
+            if (map.IsWalkable(clamped))
+            {
+                return clamped;
+            }
+
+            for (var radius = 1; radius <= Math.Max(map.Width, map.Height); radius++)
+            {
+                for (var offsetY = -radius; offsetY <= radius; offsetY++)
+                {
+                    for (var offsetX = -radius; offsetX <= radius; offsetX++)
+                    {
+                        var candidate = new Point(clamped.X + offsetX, clamped.Y + offsetY);
+                        if (map.IsInBounds(candidate) && map.IsWalkable(candidate))
+                        {
+                            return candidate;
+                        }
+                    }
+                }
+            }
+
+            return new Point(map.SpawnX, map.SpawnY);
         }
     }
 
@@ -160,6 +184,8 @@ public sealed class SaveGameService
         public int Level { get; init; }
         public int MaxHealth { get; init; }
         public int CurrentHealth { get; init; }
+        public int Experience { get; init; }
+        public Dictionary<string, int> MovePp { get; init; } = new(StringComparer.Ordinal);
 
         public static CreatureData FromCreature(Creature creature)
         {
@@ -169,7 +195,9 @@ public sealed class SaveGameService
                 Nickname = creature.Nickname,
                 Level = creature.Level,
                 MaxHealth = creature.MaxHealth,
-                CurrentHealth = creature.CurrentHealth
+                CurrentHealth = creature.CurrentHealth,
+                Experience = creature.Experience,
+                MovePp = creature.MovePp.ToDictionary(entry => entry.Key, entry => entry.Value, StringComparer.Ordinal)
             };
         }
 
@@ -181,7 +209,9 @@ public sealed class SaveGameService
                 Nickname = Nickname,
                 Level = Level,
                 MaxHealth = MaxHealth,
-                CurrentHealth = Math.Clamp(CurrentHealth, 0, MaxHealth)
+                CurrentHealth = Math.Clamp(CurrentHealth, 0, MaxHealth),
+                Experience = Math.Max(0, Experience),
+                MovePp = MovePp.ToDictionary(entry => entry.Key, entry => Math.Max(0, entry.Value), StringComparer.Ordinal)
             };
         }
     }

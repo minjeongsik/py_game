@@ -1,0 +1,59 @@
+Summary
+- 전투 화면 패널을 줄이고 배경/타격 플래시/흔들림을 넣어 배틀이 더 게임처럼 보이도록 정리했다.
+- 월드 상시 패널을 제거하고, 기본 필드 화면이 더 깨끗하게 보이도록 유지했다.
+- 주요 상태 화면 렌더에 PointClamp 샘플링을 적용해 픽셀 아트가 흐릿하게 보이던 문제를 줄였다.
+
+Files changed
+- GameFlow/GameSession.cs
+- GameFlow/States/World/WorldState.cs
+- GameFlow/States/Battle/BattleText.cs
+- GameFlow/States/Battle/BattleMoveHelper.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/Bag/BagState.cs
+- GameFlow/States/Dialogue/DialogueState.cs
+- GameFlow/States/Party/PartyState.cs
+- GameFlow/States/Pause/PauseState.cs
+- GameFlow/States/Shop/ShopState.cs
+- GameFlow/States/Storage/StorageState.cs
+- GameFlow/States/Title/TitleState.cs
+
+World/interior visual uplift now supported
+- 월드 화면에서 상시 상단/하단 패널을 제거해 필드가 더 크게 보이도록 조정했다.
+- 이동 시 정보 패널이 남지 않도록 정리해 시야를 덜 가리게 했다.
+
+Character visual uplift now supported
+- 이번 패스에서 캐릭터 자산 자체를 새로 추가하지는 않았지만, 흐릿한 샘플링을 줄여 기존 스프라이트가 더 선명하게 보이도록 했다.
+
+Battle visual uplift now supported
+- 전투 카드와 행동 패널 크기를 줄였다.
+- 전투 배경을 단색 디버그 화면에서 벗어나도록 레이어형 배경으로 교체했다.
+- 공격 적중 시 플래시와 흔들림을 넣었다.
+- 기술/아이템/교체/포획/도주 흐름을 새 BattleState 기준으로 정리했다.
+
+Korean UI readability improvements
+- 전투 기본 문구와 선택 문구를 한국어 기준으로 다시 정리했다.
+- BattleText, BattleMoveHelper의 깨진 기본 문구를 정리했다.
+
+Presentation/refinement improvements
+- 상태 화면 다수에 PointClamp를 적용해 타이틀, 대화, 파티, 가방, 상점, 보관함, 일시정지까지 같은 픽셀 선명도를 유지하도록 맞췄다.
+
+Optimization-minded improvements
+- 기존 자산/패널 렌더 구조를 유지하면서 렌더 상태만 보정해 과한 구조 변경 없이 개선했다.
+
+Practical gameplay QA performed
+- dotnet run with PYGAME_QA_BOOT_MODE=world 실행 확인
+- dotnet run with PYGAME_QA_BOOT_MODE=battle 실행 확인
+- qa_world_refresh.png 캡처로 월드 상시 패널 제거 상태 확인
+- qa_battle_refresh.png 캡처로 전투 패널 크기와 배경/스프라이트 배치 확인
+
+Build command run
+- dotnet build PyGame.sln
+
+Build result
+- 성공
+- 경고 0, 오류 0
+
+Remaining issues
+- 월드 Enter 정보 패널의 실제 화면 검증은 입력 자동화 초점 문제로 스크린샷까지는 안정적으로 확보하지 못했다.
+- 전투 연출은 1차 패스 수준이며, 다음 단계에서는 공격 시 짧은 프레임 애니메이션이나 기술별 색 연출을 더 넣을 여지가 있다.
+- 타이틀/상태 화면의 한국어 문구는 이번 패스에서 주로 샘플링 보정만 했고, 전체 문자열 재정리는 별도 패스로 남아 있다.

@@ -34,9 +34,11 @@ public sealed class Game1 : Game
     private SpriteBatch? _spriteBatch;
     private Texture2D? _pixel;
     private PrimitiveRenderer? _primitiveRenderer;
+    private RetroArtAssets? _art;
     private PixelTextRenderer? _textRenderer;
     private MenuRenderer? _menuRenderer;
     private DialogueBoxRenderer? _dialogueRenderer;
+    private UiSkinRenderer? _uiSkin;
 
     private GameDefinitions _definitions = null!;
     private GameSession _session = null!;
@@ -69,6 +71,7 @@ public sealed class Game1 : Game
             new BattleState(),
             new PauseState()
         });
+        ApplyQaBootMode();
 
         base.Initialize();
     }
@@ -80,14 +83,16 @@ public sealed class Game1 : Game
         _pixel.SetData([Color.White]);
 
         _primitiveRenderer = new PrimitiveRenderer(_spriteBatch, _pixel);
+        _art = new RetroArtAssets(GraphicsDevice, Path.Combine(AppContext.BaseDirectory, "Content", "Sprites"));
         _textRenderer = new PixelTextRenderer(_spriteBatch, _pixel);
-        _menuRenderer = new MenuRenderer(_textRenderer);
-        _dialogueRenderer = new DialogueBoxRenderer(_primitiveRenderer, _textRenderer);
+        _uiSkin = new UiSkinRenderer(GraphicsDevice);
+        _menuRenderer = new MenuRenderer(_textRenderer, _uiSkin);
+        _dialogueRenderer = new DialogueBoxRenderer(_textRenderer, _uiSkin);
     }
 
     protected override void Update(GameTime gameTime)
     {
-        _input.Update();
+        _input.Update((float)gameTime.ElapsedGameTime.TotalSeconds);
 
         var context = CreateContext();
         _stateManager.Update(gameTime, context);
@@ -98,7 +103,7 @@ public sealed class Game1 : Game
             return;
         }
 
-        Window.Title = $"몬스터 필드 | {_stateManager.CurrentId} | {context.Session.CurrentMapId}";
+        Window.Title = $"몬스터 월드 | {_stateManager.CurrentId} | {context.Session.CurrentMapId}";
         base.Update(gameTime);
     }
 
@@ -113,8 +118,12 @@ public sealed class Game1 : Game
     {
         _dialogueRenderer = null;
         _menuRenderer = null;
+        _uiSkin?.Dispose();
+        _uiSkin = null;
         _textRenderer?.Dispose();
         _textRenderer = null;
+        _art?.Dispose();
+        _art = null;
         _primitiveRenderer = null;
         _pixel?.Dispose();
         _pixel = null;
@@ -131,9 +140,11 @@ public sealed class Game1 : Game
             Audio = _audio,
             Camera = _camera,
             PrimitiveRenderer = _primitiveRenderer!,
+            Art = _art!,
             TextRenderer = _textRenderer!,
             MenuRenderer = _menuRenderer!,
             DialogueRenderer = _dialogueRenderer!,
+            UiSkin = _uiSkin!,
             GraphicsDevice = GraphicsDevice,
             SpriteBatch = _spriteBatch!,
             Definitions = _definitions,
@@ -144,5 +155,36 @@ public sealed class Game1 : Game
             ResetSession = () => _session = GameSessionFactory.CreateNew(_definitions),
             ReplaceSession = session => _session = session
         };
+    }
+
+    private void ApplyQaBootMode()
+    {
+        var mode = Environment.GetEnvironmentVariable("PYGAME_QA_BOOT_MODE");
+        if (string.IsNullOrWhiteSpace(mode))
+        {
+            return;
+        }
+
+        if (string.Equals(mode, "world", StringComparison.OrdinalIgnoreCase))
+        {
+            _stateManager.ChangeState(GameStateId.World);
+            return;
+        }
+
+        if (!string.Equals(mode, "battle", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
+        var species = _definitions.Species["embercub"];
+        _session.ActiveEncounter = new Domain.Battle.Encounter
+        {
+            IsTrainerBattle = false,
+            OpponentName = "야생",
+            OpponentParty = [Domain.Creatures.Creature.Create(species.Id, species.Name, 5)]
+        };
+        _session.ReturnState = GameStateId.World;
+        _session.StatusMessage = "QA 전투 부트 모드";
+        _stateManager.ChangeState(GameStateId.Battle);
     }
 }

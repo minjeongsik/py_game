@@ -27,6 +27,8 @@ public sealed class PixelTextRenderer : IDisposable
         _ = pixel;
     }
 
+    public SpriteBatch SpriteBatch => _spriteBatch;
+
     public void DrawText(Vector2 position, string text, int scale, Color color)
     {
         if (string.IsNullOrEmpty(text))

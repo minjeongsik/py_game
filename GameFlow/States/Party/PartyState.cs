@@ -1,21 +1,23 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PyGame.Domain.Creatures;
 using PyGame.GameFlow.StateManager;
+using PyGame.UI.Menus;
 
 namespace PyGame.GameFlow.States.Party;
 
 public sealed class PartyState : IGameState
 {
+    private static readonly Color BorderColor = new(208, 184, 108);
     private int _selected;
-    private string _panelMessage = "크리처를 선택하세요. L로 선두를 바꿉니다.";
+    private string _panelMessage = "몬스터를 고르세요. Enter로 선두를 바꿀 수 있습니다.";
 
     public GameStateId Id => GameStateId.Party;
 
     public void Update(GameTime gameTime, GameContext context)
     {
         _ = gameTime;
-
         var party = context.Session.Party;
         if (party.Count == 0)
         {
@@ -28,27 +30,19 @@ public sealed class PartyState : IGameState
         }
 
         _selected = Math.Clamp(_selected, 0, party.Count - 1);
+        if (context.Input.WasRepeated(Keys.Up) || context.Input.WasRepeated(Keys.W)) _selected = (_selected + party.Count - 1) % party.Count;
+        if (context.Input.WasRepeated(Keys.Down) || context.Input.WasRepeated(Keys.S)) _selected = (_selected + 1) % party.Count;
 
-        if (context.Input.WasPressed(Keys.Up) || context.Input.WasPressed(Keys.W))
-        {
-            _selected = (_selected + party.Count - 1) % party.Count;
-        }
-
-        if (context.Input.WasPressed(Keys.Down) || context.Input.WasPressed(Keys.S))
-        {
-            _selected = (_selected + 1) % party.Count;
-        }
-
-        if (context.Input.WasPressed(Keys.L))
+        if (context.Input.WasPressed(Keys.Enter) || context.Input.WasPressed(Keys.Space) || context.Input.WasPressed(Keys.L))
         {
             if (party.SetLead(_selected))
             {
                 _selected = 0;
                 var lead = party.ActiveCreature;
                 _panelMessage = lead.IsFainted
-                    ? $"{lead.Nickname}이(가) 선두지만 전투에서는 다른 준비된 크리처가 나섭니다."
-                    : $"{lead.Nickname}이(가) 이제 선두 크리처입니다.";
-                context.Session.StatusMessage = $"선두를 {lead.Nickname}(으)로 변경했습니다.";
+                    ? $"{lead.Nickname}은(는) 선두지만 전투에서는 다른 동료가 먼저 나갑니다."
+                    : $"{lead.Nickname}을(를) 선두 몬스터로 바꿨습니다.";
+                context.Session.StatusMessage = $"{lead.Nickname}이(가) 새로운 선두입니다.";
             }
 
             return;
@@ -61,15 +55,6 @@ public sealed class PartyState : IGameState
             return;
         }
 
-        if (context.Input.WasPressed(Keys.Enter) || context.Input.WasPressed(Keys.Space))
-        {
-            var creature = party.Members[_selected];
-            _panelMessage = creature.IsFainted
-                ? $"{creature.Nickname}은(는) 회복해야 선두로 설 수 있습니다."
-                : $"{creature.Nickname}은(는) 필드와 전투 준비가 됐습니다.";
-            return;
-        }
-
         if (context.Input.WasPressed(Keys.Escape))
         {
             context.StateManager.ChangeState(context.Session.ReturnState);
@@ -79,56 +64,68 @@ public sealed class PartyState : IGameState
     public void Draw(GameTime gameTime, GameContext context)
     {
         _ = gameTime;
-
         var party = context.Session.Party;
+        var layout = new StateLayoutRenderer(context.TextRenderer, context.UiSkin);
 
-        context.SpriteBatch.Begin();
+        context.SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
         context.PrimitiveRenderer.Fill(new Rectangle(0, 0, context.Viewport.Width, context.Viewport.Height), new Color(196, 214, 176));
-        context.PrimitiveRenderer.Fill(new Rectangle(24, 22, 912, 70), new Color(16, 24, 34, 232));
-        context.PrimitiveRenderer.Outline(new Rectangle(24, 22, 912, 70), 3, new Color(208, 184, 108));
-        context.TextRenderer.DrawText(new Vector2(54, 40), "파티", 4, new Color(248, 238, 188));
-        context.TextRenderer.DrawText(new Vector2(640, 46), $"선두 {party.ActiveCreature.Nickname}", 2, new Color(220, 228, 232));
+        layout.DrawHeader("파티", $"선두 {party.ActiveCreature.Nickname}", BorderColor);
+        layout.DrawBodyPanels(new Rectangle(24, 110, 520, 390), new Rectangle(566, 110, 370, 390), BorderColor);
+        DrawPartyList(context, layout, party);
+        DrawSelectedInfo(context, party.Members[_selected], party.ActiveIndex);
+        layout.DrawFooter(_panelMessage, "위아래 선택  Enter 선두 변경  L 대체 입력  R 보관함  ESC 뒤로", BorderColor);
+        context.SpriteBatch.End();
+    }
 
-        context.PrimitiveRenderer.Fill(new Rectangle(24, 110, 520, 390), new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(new Rectangle(24, 110, 520, 390), 3, new Color(208, 184, 108));
-        context.PrimitiveRenderer.Fill(new Rectangle(566, 110, 370, 390), new Color(18, 26, 36, 236));
-        context.PrimitiveRenderer.Outline(new Rectangle(566, 110, 370, 390), 3, new Color(208, 184, 108));
-
+    private void DrawPartyList(GameContext context, StateLayoutRenderer layout, Domain.Party.Party party)
+    {
         var y = 134;
         for (var i = 0; i < party.Members.Count; i++)
         {
             var creature = party.Members[i];
-            var selected = i == _selected;
             var active = i == party.ActiveIndex;
-            var rowRect = new Rectangle(44, y - 8, 480, 52);
-            var fill = selected ? new Color(64, 86, 112) : new Color(28, 38, 52);
-            var border = active ? new Color(250, 226, 132) : new Color(84, 96, 110);
-            context.PrimitiveRenderer.Fill(rowRect, fill);
-            context.PrimitiveRenderer.Outline(rowRect, 2, border);
-            DrawMiniPortrait(context, new Rectangle(58, y, 34, 30), creature, selected);
-
-            var marker = active ? "선두" : creature.IsFainted ? "휴식" : "준비";
-            var markerColor = active ? new Color(248, 226, 132) : creature.IsFainted ? new Color(236, 146, 132) : new Color(214, 224, 228);
+            layout.DrawSelectableRow(
+                new Rectangle(44, y - 8, 480, 52),
+                i == _selected,
+                new Color(64, 86, 112),
+                new Color(28, 38, 52),
+                active ? new Color(250, 226, 132) : new Color(84, 96, 110),
+                new Color(84, 96, 110));
+            DrawMiniPortrait(context, new Rectangle(58, y, 34, 30), creature, i == _selected);
             context.TextRenderer.DrawText(new Vector2(108, y + 2), $"{i + 1} {creature.Nickname}", 2, Color.White);
             context.TextRenderer.DrawText(new Vector2(108, y + 24), $"Lv {creature.Level} HP {creature.CurrentHealth}/{creature.MaxHealth}", 2, new Color(214, 224, 228));
-            context.TextRenderer.DrawText(new Vector2(404, y + 12), marker, 2, markerColor);
+            context.TextRenderer.DrawText(
+                new Vector2(404, y + 12),
+                active ? "선두" : creature.IsFainted ? "기절" : "준비",
+                2,
+                active ? new Color(248, 226, 132) : creature.IsFainted ? new Color(236, 146, 132) : new Color(214, 224, 228));
             y += 62;
         }
+    }
 
-        var selectedCreature = party.Members[_selected];
+    private void DrawSelectedInfo(GameContext context, Creature selectedCreature, int activeIndex)
+    {
         context.TextRenderer.DrawText(new Vector2(598, 136), "정보", 3, new Color(248, 238, 188));
         DrawLargePortrait(context, new Rectangle(674, 188, 150, 114), selectedCreature);
         context.TextRenderer.DrawText(new Vector2(604, 328), selectedCreature.Nickname, 3, Color.White);
         context.TextRenderer.DrawText(new Vector2(604, 366), $"종족 {context.Definitions.Species[selectedCreature.SpeciesId].Name}", 2, new Color(214, 224, 228));
         context.TextRenderer.DrawText(new Vector2(604, 396), $"레벨 {selectedCreature.Level}", 2, new Color(214, 224, 228));
         context.TextRenderer.DrawText(new Vector2(604, 426), $"체력 {selectedCreature.CurrentHealth}/{selectedCreature.MaxHealth}", 2, new Color(214, 224, 228));
-        context.TextRenderer.DrawText(new Vector2(604, 456), _selected == party.ActiveIndex ? "현재 선두 크리처" : "L을 눌러 선두로 지정", 2, new Color(236, 236, 224));
+        context.TextRenderer.DrawText(new Vector2(604, 456), "EXP", 2, new Color(214, 224, 228));
+        context.UiSkin.DrawExperienceBar(context.SpriteBatch, new Rectangle(660, 460, 192, 12), GetExpRatio(selectedCreature));
+        context.TextRenderer.DrawText(new Vector2(604, 480), $"다음 레벨까지 {GetExpRemaining(selectedCreature)}", 1, new Color(214, 224, 228));
+        context.TextRenderer.DrawText(new Vector2(604, 504), _selected == activeIndex ? "현재 선두 몬스터" : "Enter로 선두 지정", 2, new Color(236, 236, 224));
+    }
 
-        context.PrimitiveRenderer.Fill(new Rectangle(24, 514, 912, 58), new Color(16, 24, 34, 232));
-        context.PrimitiveRenderer.Outline(new Rectangle(24, 514, 912, 58), 2, new Color(208, 184, 108));
-        context.TextRenderer.DrawText(new Vector2(44, 528), _panelMessage, 2, new Color(236, 236, 224));
-        context.TextRenderer.DrawText(new Vector2(44, 550), "위아래 선택  L 선두변경  R 보관함  ESC 돌아가기", 2, new Color(216, 226, 232));
-        context.SpriteBatch.End();
+    private static float GetExpRatio(Creature creature)
+    {
+        var next = Creature.GetExperienceForNextLevel(creature.Level);
+        return next <= 0 ? 0f : (float)creature.Experience / next;
+    }
+
+    private static int GetExpRemaining(Creature creature)
+    {
+        return Math.Max(0, Creature.GetExperienceForNextLevel(creature.Level) - creature.Experience);
     }
 
     private static void DrawMiniPortrait(GameContext context, Rectangle rect, Creature creature, bool selected)

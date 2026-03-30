@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\PyGame.csproj": {}
+    "E:\\min\\job\\ai\\py_game\\PyGame.csproj": {}
   },
   "projects": {
-    "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\PyGame.csproj": {
+    "E:\\min\\job\\ai\\py_game\\PyGame.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\PyGame.csproj",
+        "projectUniqueName": "E:\\min\\job\\ai\\py_game\\PyGame.csproj",
         "projectName": "PyGame",
-        "projectPath": "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\PyGame.csproj",
+        "projectPath": "E:\\min\\job\\ai\\py_game\\PyGame.csproj",
         "packagesPath": "C:\\Users\\user\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\user\\Documents\\GitHub\\py_game\\py_game\\obj\\",
+        "outputPath": "E:\\min\\job\\ai\\py_game\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -53,6 +53,10 @@
             "MonoGame.Framework.DesktopGL": {
               "target": "Package",
               "version": "[3.8.1.303, )"
+            },
+            "System.Drawing.Common": {
+              "target": "Package",
+              "version": "[8.0.0, )"
             }
           },
           "imports": [

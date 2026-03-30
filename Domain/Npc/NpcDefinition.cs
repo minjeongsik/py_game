@@ -26,4 +26,5 @@ public sealed class NpcDefinition
     public string TrainerNoticeText { get; init; } = string.Empty;
     public string TrainerCreatureId { get; init; } = "embercub";
     public int TrainerCreatureLevel { get; init; } = 5;
+    public List<TrainerRosterSlot> TrainerRoster { get; init; } = [];
 }

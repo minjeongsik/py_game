@@ -1,0 +1,225 @@
+{
+  "maps": [
+    {
+      "id": "new_bark_town",
+      "name": "새싹마을",
+      "tileSize": 32,
+      "spawnX": 4,
+      "spawnY": 14,
+      "recoveryX": 8,
+      "recoveryY": 3,
+      "rows": [
+        "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT",
+        "T..###....TT....gggg....TT.......T",
+        "T..#=#....TT....gggg....TT..gg...T",
+        "T..###..=======.gggg....TT..gg...T",
+        "T......=....==..........TT.......T",
+        "T..T...=................TT.......T",
+        "T..T.======..TT....TTT...........T",
+        "T..T.....=...TT....TTT....gggg...T",
+        "T......====..............gggg....T",
+        "T..###....=..TT....T.....gggg....T",
+        "T..#=#....=..TT....T.....gggg....T",
+        "T..###..=====TT....T.............T",
+        "T.........=.........TTTTT........T",
+        "T..gggg...=...gggg..TTTT..gggg...T",
+        "T..gggg...====gggg..........gg...T",
+        "T..gggg......=gggg....TTT...gg...T",
+        "T.......TT...=.......TTTT...==...T",
+        "T.......TT...=====..........==...T",
+        "T............g..g....TT....ggg...T",
+        "T...gggg.....g..g....TT....ggg...T",
+        "T...gggg..............TT........TT",
+        "TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT"
+      ],
+      "warps": [],
+      "npcs": [
+        { "npcId": "guide_npc", "x": 9, "y": 9 },
+        { "npcId": "elder_npc", "x": 13, "y": 14 },
+        { "npcId": "healer_npc", "x": 7, "y": 3 },
+        { "npcId": "shopkeeper_npc", "x": 7, "y": 10 },
+        { "npcId": "town_child", "x": 4, "y": 16 },
+        { "npcId": "grove_watcher", "x": 29, "y": 18, "facingX": -1, "facingY": 0 },
+        { "npcId": "route_scout", "x": 20, "y": 8, "facingX": -1, "facingY": 0, "sightRange": 4 },
+        { "npcId": "forest_rookie", "x": 27, "y": 18, "facingX": -1, "facingY": 0, "sightRange": 3 }
+      ],
+      "pcTerminals": [
+        { "x": 7, "y": 9, "label": "마을 PC" }
+      ],
+      "pickups": [
+        { "id": "town_potion_pickup", "x": 11, "y": 4, "itemId": "potion", "quantity": 1, "collectedFlag": "pickup_town_potion" },
+        { "id": "route_potion_pickup", "x": 24, "y": 11, "itemId": "potion", "quantity": 1, "collectedFlag": "pickup_route_potion" },
+        { "id": "grove_sphere_pickup", "x": 30, "y": 18, "itemId": "capture-sphere", "quantity": 1, "collectedFlag": "pickup_grove_sphere" }
+      ],
+      "encounters": [
+        { "creatureId": "embercub", "minLevel": 2, "maxLevel": 4 },
+        { "creatureId": "sproutle", "minLevel": 2, "maxLevel": 3 },
+        { "creatureId": "brookit", "minLevel": 2, "maxLevel": 4 }
+      ]
+    }
+  ],
+  "species": [
+    { "id": "sproutle", "name": "새싹몽", "primaryTypeId": "leaf", "moveIds": ["tackle", "leaf_tap", "vine_slap"] },
+    { "id": "embercub", "name": "불꼬미", "primaryTypeId": "flame", "moveIds": ["tackle", "ember_nip", "cinder_dash"] },
+    { "id": "brookit", "name": "물갑돌이", "primaryTypeId": "wave", "moveIds": ["tackle", "splash_jet", "bubble_pop"] }
+  ],
+  "npcs": [
+    {
+      "id": "guide_npc",
+      "name": "안내인",
+      "dialogueLines": [
+        "새싹마을에 온 걸 환영해.",
+        "북쪽 광장에는 치료, 상점, PC가 모여 있어 준비하기 좋아.",
+        "동쪽 길의 정찰 트레이너를 이기고 돌아오면 마을 표식을 줄게."
+      ],
+      "conditionalDialogueFlag": "trainer_route_scout_defeated",
+      "conditionalDialogueLines": [
+        "정찰 트레이너를 넘었구나.",
+        "이제 바람숲 입구까지 길이 한결 편해졌어.",
+        "준비가 되면 더 멀리 떠나 보자."
+      ],
+      "grantsFlagOnTalk": "objective_route_challenge",
+      "rewardRequiredFlag": "trainer_route_scout_defeated",
+      "rewardFlagOnTalk": "milestone_route_mark_claimed",
+      "rewardMoney": 120,
+      "rewardBadgeCount": 1,
+      "rewardItemId": "potion",
+      "rewardItemQuantity": 1,
+      "rewardDialogueLines": [
+        "바람길 마크를 받았다!",
+        "상금 120원과 상처약 1개를 챙겨 가.",
+        "숲 입구까지 둘러보면 다음 여정 준비가 더 쉬워질 거야."
+      ],
+      "visualStyle": "guide",
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "elder_npc",
+      "name": "노인",
+      "dialogueLines": [
+        "새싹마을 동쪽 길은 넓어 보여도 흐름이 하나로 이어져 있단다.",
+        "길을 따라가다 보면 풀밭과 나무길이 차례로 이어지지.",
+        "회복이 필요하면 광장의 간호사를 먼저 찾으렴."
+      ],
+      "conditionalDialogueFlag": "trainer_route_scout_defeated",
+      "conditionalDialogueLines": [
+        "정찰이를 물리쳤다면 숲 입구까지는 한숨 돌릴 수 있겠구나.",
+        "풀숲 옆 반짝임도 놓치지 말아라."
+      ],
+      "visualStyle": "elder",
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "healer_npc",
+      "name": "미라 간호사",
+      "dialogueLines": [
+        "모험 전에 숨을 고르고 가요.",
+        "지친 몬스터는 언제든 내가 돌봐 줄게요."
+      ],
+      "visualStyle": "healer",
+      "healsParty": true,
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "shopkeeper_npc",
+      "name": "상점주인 레아",
+      "dialogueLines": [
+        "동쪽 길로 나가기 전에 기본 물건부터 챙겨요.",
+        "상처약과 포획구는 초반 여정의 필수품이죠."
+      ],
+      "visualStyle": "shopkeeper",
+      "opensShop": true,
+      "shopItemIds": ["potion", "capture-sphere"],
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "town_child",
+      "name": "마을아이",
+      "dialogueLines": [
+        "길 끝 숲 입구에 반짝이는 물건이 하나 떨어져 있었어.",
+        "풀숲 옆 좁은 길을 잘 보면 보여!"
+      ],
+      "visualStyle": "guide",
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "grove_watcher",
+      "name": "숲지기",
+      "dialogueLines": [
+        "여긴 바람숲 입구야.",
+        "아직 작은 길이지만, 다음 지역으로 이어질 준비가 된 곳이지."
+      ],
+      "conditionalDialogueFlag": "milestone_route_mark_claimed",
+      "conditionalDialogueLines": [
+        "마크까지 받았다면 이제 이 숲길도 겁나지 않겠군.",
+        "준비가 되면 더 깊은 지역도 만들 수 있을 거야."
+      ],
+      "visualStyle": "elder",
+      "startsTrainerBattle": false,
+      "trainerCreatureId": "embercub",
+      "trainerCreatureLevel": 5
+    },
+    {
+      "id": "route_scout",
+      "name": "정찰원 리노",
+      "dialogueLines": [
+        "안내인이 아직 널 동쪽 길로 보내지 않았나 보네."
+      ],
+      "conditionalDialogueFlag": "trainer_route_scout_defeated",
+      "conditionalDialogueLines": [
+        "좋아, 이제 넌 이 길에서 버틸 힘이 있다는 걸 보여 줬어."
+      ],
+      "visualStyle": "scout",
+      "startsTrainerBattle": true,
+      "trainerDefeatedFlag": "trainer_route_scout_defeated",
+      "trainerRequiredFlag": "objective_route_challenge",
+      "trainerVictoryFlag": "objective_route_cleared",
+      "trainerNoticeText": "정찰원 리노가 길목에서 당신을 발견했다!",
+      "trainerCreatureId": "brookit",
+      "trainerCreatureLevel": 6
+    },
+    {
+      "id": "forest_rookie",
+      "name": "숲길 연수생",
+      "dialogueLines": [
+        "숲 입구는 겁먹지 않고 차근차근 보면 길이 보여.",
+        "나와 한 번 겨뤄 보면 더 준비가 될 거야."
+      ],
+      "conditionalDialogueFlag": "trainer_forest_rookie_defeated",
+      "conditionalDialogueLines": [
+        "이제 숲길 바람도 견딜 만하지?",
+        "다음 길은 더 넓어질 테니 대비해 둬."
+      ],
+      "visualStyle": "scout",
+      "startsTrainerBattle": true,
+      "trainerDefeatedFlag": "trainer_forest_rookie_defeated",
+      "trainerVictoryFlag": "objective_grove_cleared",
+      "trainerNoticeText": "숲길 연수생이 숲 입구에서 승부를 걸어왔다!",
+      "trainerCreatureId": "sproutle",
+      "trainerCreatureLevel": 5
+    }
+  ],
+  "moves": [
+    { "id": "tackle", "name": "몸통박치기", "typeId": "neutral", "power": 5 },
+    { "id": "leaf_tap", "name": "잎치기", "typeId": "leaf", "power": 6 },
+    { "id": "vine_slap", "name": "덩굴채찍", "typeId": "leaf", "power": 7 },
+    { "id": "ember_nip", "name": "불꽃물기", "typeId": "flame", "power": 6 },
+    { "id": "cinder_dash", "name": "불씨돌진", "typeId": "flame", "power": 7 },
+    { "id": "splash_jet", "name": "물보라분사", "typeId": "wave", "power": 6 },
+    { "id": "bubble_pop", "name": "방울파열", "typeId": "wave", "power": 7 }
+  ],
+  "items": [
+    { "id": "potion", "name": "상처약", "category": "healing", "price": 60, "healAmount": 12 },
+    { "id": "capture-sphere", "name": "포획구", "category": "capture", "price": 80, "healAmount": 0 }
+  ]
+}

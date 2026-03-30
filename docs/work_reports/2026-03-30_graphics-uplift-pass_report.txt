@@ -1,0 +1,75 @@
+Summary
+- Added a first cohesive retro JRPG art pass centered on runtime-built sprite assets instead of primitive-only rendering.
+- Upgraded title, world, dialogue, shared menu panels, and battle presentation to use skinned panels and sprite-like textures.
+- Kept Korean as the default player-facing language on the updated title, dialogue, world HUD, and battle surfaces.
+
+Files changed
+- Core/Game1.cs
+- Core/Rendering/RetroArtAssets.cs
+- GameFlow/StateManager/GameContext.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/Battle/BattleText.cs
+- GameFlow/States/Dialogue/DialogueState.cs
+- GameFlow/States/Title/TitleState.cs
+- GameFlow/States/World/WorldState.cs
+- GameFlow/States/Bag/BagState.cs
+- GameFlow/States/Party/PartyState.cs
+- GameFlow/States/Shop/ShopState.cs
+- GameFlow/States/Storage/StorageState.cs
+- UI/Dialogue/DialogueBoxRenderer.cs
+- UI/Hud/PixelTextRenderer.cs
+- UI/Menus/MenuRenderer.cs
+- UI/Menus/StateLayoutRenderer.cs
+- UI/Menus/UiSkinRenderer.cs
+- Infrastructure/Content/PrototypeDefinitionFactory.cs
+
+World/interior visual uplift now supported
+- Added runtime-generated textured tiles for town ground, route ground, forest ground, path, grass, trees, interior floor, counters, service tiles, doors, and building pieces.
+- Switched world map drawing from direct primitive tile blocks to sprite texture draws.
+- Added roof/body/foundation building rendering with style tinting so home, shop, clinic, and village buildings read more like destinations.
+- Upgraded PC terminal and pickup rendering to texture-based objects.
+
+Character visual uplift now supported
+- Added sprite-like 4-direction player/NPC/trainer textures built from reusable pixel patterns and palettes.
+- Replaced primitive body-block world characters with cached sprite textures and retained defeated-state readability via tinting.
+- Improved role readability for guide, elder, healer, shopkeeper, scout, villager, and player.
+
+Battle visual uplift now supported
+- Rebuilt battle presentation around sprite-based creature art for the early visible species: 새싹몬, 불곰이, 물방울이.
+- Added front/back creature presentation, skinned status cards, and skinned action panels.
+- Reworked battle HP bars to use a UI skin path instead of plain filled rectangles.
+- Rewrote the active battle screen copy to natural Korean on the updated flow.
+
+Korean UI readability improvements
+- Rewrote title and dialogue screen text to clean Korean defaults.
+- Rewrote battle option labels and major battle prompts to Korean.
+- Kept updated title, world HUD, battle, dialogue, and shared menu surfaces readable with larger framed panels and cleaner spacing.
+
+Presentation/refinement improvements
+- Added UiSkinRenderer for reusable skinned 9-slice-style panels, selection rows, and HP bars.
+- Updated MenuRenderer, DialogueBoxRenderer, and StateLayoutRenderer to use the shared UI skin.
+- Added a lightweight QA boot mode via PYGAME_QA_BOOT_MODE for direct world/battle snapshot verification without changing the normal player path.
+
+Optimization-minded improvements
+- Cached all generated tile, character, creature, and UI textures at load time instead of rebuilding them per frame.
+- Kept draw paths simple: runtime uses direct texture reuse through RetroArtAssets and UiSkinRenderer.
+- Avoided extra per-frame sprite lookup rebuilding by resolving reusable textures once during LoadContent.
+
+Practical gameplay QA performed
+- Ran title launch capture and confirmed the updated title skin and Korean menu presentation.
+- Ran PYGAME_QA_BOOT_MODE=world and captured the first region overworld with upgraded tiles, buildings, character sprites, and HUD.
+- Ran PYGAME_QA_BOOT_MODE=battle and captured the battle screen with upgraded creature art, status cards, action menu, and Korean prompts.
+- Re-ran the normal executable path after an initial UI texture runtime exception and fixed the issue by replacing variable-length string-pattern panels with deterministic generated panel textures.
+
+Build command run
+- dotnet build PyGame.sln
+
+Build result
+- Success
+- Warnings 0
+- Errors 0
+
+Remaining issues
+- The new art pass is intentionally lightweight and runtime-generated; it is a real sprite-based uplift, but not yet an external PNG content pipeline.
+- Shared menu skins now cover more screens, but some non-world state backgrounds are still simple color fields behind the new panels.
+- Practical QA covered title, direct world boot, and direct battle boot; full interactive automation of Continue/New Game navigation and all service flows was not fully scripted in this environment.

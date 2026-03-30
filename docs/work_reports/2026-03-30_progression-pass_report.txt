@@ -1,0 +1,75 @@
+﻿Summary
+- 전투에 경험치, 레벨업, PP, 명중률, 다중 트레이너 로스터, 전투 중 회복 아이템 대상 선택을 추가했다.
+- 월드에 실내 전용 맵, 문 기반 워프, 치료소/도구점/집 내부, 해솔길과 속삭임 숲, 바람개울 마을을 추가했다.
+- 한국어 기본 텍스트를 새 월드/전투/전이 흐름에 맞춰 정리했다.
+
+Files changed
+- Domain/Battle/Encounter.cs
+- Domain/Battle/MoveDefinition.cs
+- Domain/Creatures/Creature.cs
+- Domain/Npc/NpcDefinition.cs
+- Domain/Npc/TrainerRosterSlot.cs
+- Domain/World/MapWarp.cs
+- Domain/World/TileType.cs
+- Domain/World/WorldMap.cs
+- GameFlow/GameSession.cs
+- GameFlow/GameSessionFactory.cs
+- GameFlow/States/Bag/BagState.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/World/WorldState.cs
+- Infrastructure/Content/GameDefinitionLoader.cs
+- Infrastructure/Content/PrototypeDefinitionFactory.cs
+- Infrastructure/Save/SaveGameService.cs
+
+Battle-depth expansion now supported
+- 야생전과 트레이너전 승리 시 현재 선두 몬스터에게 경험치를 지급한다.
+- 누적 경험치가 기준치를 넘으면 즉시 레벨업하고 최대 체력이 함께 증가한다.
+- 기술 정의에 MaxPp와 Accuracy를 추가했다.
+- 플레이어와 적 모두 PP를 소모하며, 플레이어는 PP 0인 기술을 사용할 수 없다.
+- 명중 판정에 따라 빗나감 메시지를 출력한다.
+- 일부 트레이너가 2마리 로스터를 사용하고, 첫 몬스터 격파 후 다음 몬스터가 자연스럽게 이어서 출전한다.
+- 전투 중 가방에서 회복 아이템을 선택한 뒤 파티 대상 선택을 할 수 있다.
+
+Building/interior/map-transition support now supported
+- 해솔마을 외부에서 집, 민가, 도구점, 치료소로 각각 별도 실내 맵 전환이 가능하다.
+- 실내 출구는 대응하는 외부 문 앞으로 정확히 되돌아간다.
+- 치료소 내부에는 치유 NPC와 PC 터미널을 배치했다.
+- 맵 워프마다 한국어 전이 메시지를 넣어 실내/실외 흐름을 분명하게 했다.
+
+World expansion changes
+- 기존 시작 지점을 해솔마을 중심으로 재구성했다.
+- 해솔길(route_1)과 속삭임 숲(whisper_grove), 바람개울 마을(pine_village)을 추가했다.
+- 길/풀숲/건물/문/실내 서비스 구역을 타일 단위로 구분해 읽기 쉽게 만들었다.
+- 새 NPC, 새 트레이너, 새 픽업을 추가해 자연스럽게 다음 지역으로 유도한다.
+
+Presentation/refinement improvements
+- 새 전투 메시지, 전이 메시지, 목표 문구를 한국어로 정리했다.
+- 전투 UI에 PP, 정확도, EXP 진행량을 노출했다.
+- 월드 HUD가 현재 맵 이름과 지역 성격을 더 직접적으로 보여 준다.
+- 건물, 문, 카운터, 서비스 바닥 타일을 별도 시각 규칙으로 그리도록 정리했다.
+
+Optimization-minded improvements
+- 전투/월드 흐름에서 기존 상태 구조를 유지하고 필요한 상태만 추가했다.
+- 트레이너 로스터와 맵 정의를 한 번 로드한 뒤 재사용한다.
+- 월드 타일 해석과 워프/픽업/시야 판정은 입력 시점에만 수행한다.
+
+Save/load compatibility check
+- Creature 저장 데이터에 Experience와 MovePp를 추가했다.
+- 현재 맵, 위치, 회복 지점, 파티/보관함/인벤토리/진행 플래그 저장 흐름은 유지했다.
+- 실내 맵과 추가 월드 맵도 동일한 CurrentMapId 기반으로 복원되도록 유지했다.
+
+Practical gameplay QA performed
+- dotnet build PyGame.sln 재빌드 통과 확인.
+- dotnet run --project PyGame.csproj 실행으로 기동 스모크 테스트 수행. GUI 상호작용은 환경상 직접 조작하지 못해 5초 타임아웃으로 종료됨.
+- 코드 기준으로 신규 맵 전이, 트레이너 로스터, 저장 필드 확장, 치료소/PC 배치를 점검했다.
+- 별도 QA 하네스 실행은 임시 프로젝트 복원 시 로컬 인증서/네트워크 문제로 불가했다.
+
+Build command run
+- dotnet build PyGame.sln
+
+Build result
+- 성공 (경고 0, 오류 0)
+
+Remaining issues
+- 사용자 입장에서의 완전 수동 플레이스루 QA는 현재 CLI/GUI 제약 때문에 끝까지 수행하지 못했다.
+- 기존에 이미 있던 다른 상태(예: 타이틀/상점/파티)의 한국어 문구가 런타임에서 모두 자연스럽게 보이는지는 직접 화면 확인이 추가로 필요하다.

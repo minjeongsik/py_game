@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using PyGame.Domain.Battle;
 using PyGame.Domain.Inventory;
 using PyGame.Domain.Party;
@@ -24,4 +24,7 @@ public sealed class GameSession
     public DialogueScene? ActiveDialogue { get; set; }
     public Encounter? ActiveEncounter { get; set; }
     public string StatusMessage { get; set; } = "이동은 방향키, 조사는 Enter 또는 Space입니다.";
+    public string WorldInfoTitle { get; set; } = string.Empty;
+    public string WorldInfoDetail { get; set; } = string.Empty;
+    public float WorldInfoPanelTimeRemaining { get; set; }
 }

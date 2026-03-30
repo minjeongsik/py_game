@@ -1,3 +1,4 @@
+using PyGame.Domain.Battle;
 using PyGame.Domain.Creatures;
 
 namespace PyGame.Domain.Party;
@@ -139,17 +140,30 @@ public sealed class Party
         return false;
     }
 
-    public void RecoverAfterDefeat()
+    public void RecoverAfterDefeat(IReadOnlyDictionary<string, MoveDefinition>? moves = null)
     {
-        HealAll();
+        HealAll(moves);
         _activeIndex = 0;
     }
 
-    public void HealAll()
+    public void HealAll(IReadOnlyDictionary<string, MoveDefinition>? moves = null)
     {
         foreach (var member in _members)
         {
             member.CurrentHealth = member.MaxHealth;
+            if (moves is null)
+            {
+                continue;
+            }
+
+            var keys = member.MovePp.Keys.ToArray();
+            for (var i = 0; i < keys.Length; i++)
+            {
+                if (moves.TryGetValue(keys[i], out var move))
+                {
+                    member.MovePp[keys[i]] = move.MaxPp;
+                }
+            }
         }
     }
 

@@ -6,5 +6,9 @@ public enum TileType
     Path,
     Wall,
     Tree,
-    Grass
+    Grass,
+    Building,
+    Door,
+    Counter,
+    Service
 }

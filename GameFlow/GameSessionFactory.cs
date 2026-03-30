@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using PyGame.Domain.Creatures;
 using PyGame.Domain.Inventory;
 using PyGame.Domain.Party;
@@ -28,15 +28,13 @@ public static class GameSessionFactory
             CurrentMapId = firstMap.Id,
             PlayerTilePosition = new Point(firstMap.SpawnX, firstMap.SpawnY),
             RecoveryMapId = firstMap.Id,
-            RecoveryTilePosition = new Point(
-                firstMap.RecoveryX == 0 ? firstMap.SpawnX : firstMap.RecoveryX,
-                firstMap.RecoveryY == 0 ? firstMap.SpawnY : firstMap.RecoveryY),
+            RecoveryTilePosition = new Point(firstMap.RecoveryX == 0 ? firstMap.SpawnX : firstMap.RecoveryX, firstMap.RecoveryY == 0 ? firstMap.SpawnY : firstMap.RecoveryY),
             Party = party,
             Storage = storage,
             Inventory = inventory,
             Progression = new GameProgression(),
             Money = 160,
-            StatusMessage = "방향키나 WASD로 이동하고 P로 파티를 엽니다."
+            StatusMessage = "방향키나 WASD로 이동하고 Enter로 조사하세요."
         };
     }
 }

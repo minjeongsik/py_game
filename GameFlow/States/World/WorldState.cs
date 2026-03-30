@@ -1,4 +1,5 @@
 using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PyGame.Domain.Battle;
 using PyGame.Domain.Creatures;
@@ -16,9 +17,8 @@ public sealed class WorldState : IGameState
 
     public void Update(GameTime gameTime, GameContext context)
     {
-        _ = gameTime;
-
         var session = context.Session;
+        session.WorldInfoPanelTimeRemaining = Math.Max(0f, session.WorldInfoPanelTimeRemaining - (float)gameTime.ElapsedGameTime.TotalSeconds);
         var map = context.Definitions.Maps[session.CurrentMapId];
 
         if (context.Input.WasPressed(Keys.Escape))
@@ -59,23 +59,27 @@ public sealed class WorldState : IGameState
         if (map.TryGetPcTerminalAt(target, out var terminal))
         {
             session.ReturnState = GameStateId.World;
-            session.StatusMessage = $"{terminal.Label}를 열었습니다.";
+            session.StatusMessage = $"{terminal.Label}에 접속했습니다.";
+            ShowWorldInfo(session, "PC 단말기", session.StatusMessage, "보관함 화면으로 이동합니다.", 2.4f);
             context.StateManager.ChangeState(GameStateId.Storage);
             return;
         }
 
         if (!map.TryGetNpcAt(target, out var npcPlacement))
         {
-            session.StatusMessage = "앞에는 조사할 것이 없습니다.";
+            ShowEnvironmentInfo(session, map, target);
             return;
         }
 
         var npc = context.Definitions.Npcs[npcPlacement.NpcId];
         if (npc.HealsParty)
         {
-            session.Party.HealAll();
+            session.Party.HealAll(context.Definitions.Moves);
             session.Party.EnsureUsableLead();
-            session.StatusMessage = $"{npc.Name}가 파티를 회복해 주었습니다.";
+            session.RecoveryMapId = session.CurrentMapId;
+            session.RecoveryTilePosition = session.PlayerTilePosition;
+            session.StatusMessage = $"{npc.Name}이(가) 파티를 회복해 주었습니다.";
+            ShowWorldInfo(session, npc.Name, session.StatusMessage, "회복 후 다시 모험을 이어가세요.", 2.6f);
             return;
         }
 
@@ -83,7 +87,7 @@ public sealed class WorldState : IGameState
         {
             session.CurrentShopItemIds = npc.ShopItemIds;
             session.ReturnState = GameStateId.World;
-            session.StatusMessage = $"{npc.Name}의 상점을 엽니다.";
+            session.StatusMessage = $"{npc.Name}의 상점을 둘러봅니다.";
             context.StateManager.ChangeState(GameStateId.Shop);
             return;
         }
@@ -97,18 +101,18 @@ public sealed class WorldState : IGameState
         var statusLocked = false;
         if (npc.StartsTrainerBattle && session.Progression.HasFlag(npc.TrainerDefeatedFlag))
         {
-            session.StatusMessage = $"{npc.Name}은 이미 승부를 인정했습니다.";
+            session.StatusMessage = $"{npc.Name}은(는) 이미 실력을 인정했습니다.";
             statusLocked = true;
         }
         else if (!string.IsNullOrWhiteSpace(npc.TrainerRequiredFlag) && !session.Progression.HasFlag(npc.TrainerRequiredFlag))
         {
-            session.StatusMessage = $"{npc.Name}은 아직 당신을 기다리고 있습니다.";
+            session.StatusMessage = $"{npc.Name}은(는) 아직 준비를 더 하라고 말합니다.";
             statusLocked = true;
         }
 
         if (session.Progression.TryAddFlag(npc.GrantsFlagOnTalk))
         {
-            session.StatusMessage = $"{npc.Name}에게서 첫 목표를 받았습니다.";
+            session.StatusMessage = $"{npc.Name}에게서 새 목표를 받았습니다.";
             statusLocked = true;
         }
 
@@ -124,19 +128,17 @@ public sealed class WorldState : IGameState
                 session.Inventory.Add(npc.RewardItemId, npc.RewardItemQuantity);
             }
 
-            session.StatusMessage = $"{npc.Name}에게서 바람길 마크와 보상을 받았습니다.";
+            session.StatusMessage = $"{npc.Name}에게서 표식과 보상을 받았습니다.";
             rewardGranted = true;
             statusLocked = true;
         }
 
-        var dialogueLines = rewardGranted && npc.RewardDialogueLines.Count > 0
-            ? npc.RewardDialogueLines
-            : ResolveDialogueLines(npc, session.Progression);
+        var dialogueLines = rewardGranted && npc.RewardDialogueLines.Count > 0 ? npc.RewardDialogueLines : ResolveDialogueLines(npc, session.Progression);
         session.ActiveDialogue = new DialogueScene(npc.Name, dialogueLines);
         session.ReturnState = GameStateId.World;
         if (!statusLocked)
         {
-            session.StatusMessage = $"{npc.Name}와 대화합니다.";
+            session.StatusMessage = $"{npc.Name}과(와) 대화합니다.";
         }
 
         context.StateManager.ChangeState(GameStateId.Dialogue);
@@ -145,109 +147,73 @@ public sealed class WorldState : IGameState
     public void Draw(GameTime gameTime, GameContext context)
     {
         _ = gameTime;
-
         var session = context.Session;
         var map = context.Definitions.Maps[session.CurrentMapId];
         var tileSize = map.TileSize;
-        var playerPixels = new Vector2(
-            (session.PlayerTilePosition.X * tileSize) + (tileSize / 2f),
-            (session.PlayerTilePosition.Y * tileSize) + (tileSize / 2f));
+        var playerPixels = new Vector2((session.PlayerTilePosition.X * tileSize) + (tileSize / 2f), (session.PlayerTilePosition.Y * tileSize) + (tileSize / 2f));
         var transform = context.Camera.CreateWorldTransform(playerPixels, context.Viewport, map.PixelSize, CameraOffset);
 
-        context.SpriteBatch.Begin(transformMatrix: transform);
-
+        context.SpriteBatch.Begin(transformMatrix: transform, samplerState: SamplerState.PointClamp);
         for (var y = 0; y < map.Height; y++)
         {
             for (var x = 0; x < map.Width; x++)
             {
-                var tile = map.GetTileType(new Point(x, y));
-                var color = tile switch
-                {
-                    TileType.Path => new Color(204, 190, 138),
-                    TileType.Wall => new Color(96, 84, 76),
-                    TileType.Tree => new Color(56, 106, 66),
-                    TileType.Grass => new Color(92, 156, 74),
-                    _ => new Color(132, 182, 114)
-                };
-
-                var tileRect = new Rectangle(x * tileSize, y * tileSize, tileSize, tileSize);
-                context.PrimitiveRenderer.Fill(tileRect, color);
-                context.PrimitiveRenderer.Outline(tileRect, 1, new Color(0, 0, 0, 50));
-
-                if (x == map.RecoveryX && y == map.RecoveryY)
-                {
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 4, tileRect.Y + 4, tileRect.Width - 8, tileRect.Height - 8), new Color(238, 226, 234));
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 13, tileRect.Y + 7, 6, 18), new Color(194, 64, 88));
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 7, tileRect.Y + 13, 18, 6), new Color(194, 64, 88));
-                }
-
-                if (tile == TileType.Grass)
-                {
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 4, tileRect.Y + 6, 4, tileRect.Height - 12), new Color(62, 122, 56));
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 12, tileRect.Y + 4, 4, tileRect.Height - 10), new Color(62, 122, 56));
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 20, tileRect.Y + 7, 4, tileRect.Height - 12), new Color(62, 122, 56));
-                }
-
-                if (tile == TileType.Tree)
-                {
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 18, 12, 10), new Color(88, 66, 44));
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 4, tileRect.Y + 4, 24, 18), new Color(74, 134, 78));
-                }
-
-                if (tile == TileType.Wall)
-                {
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 2, tileRect.Y + 4, tileRect.Width - 4, tileRect.Height - 6), new Color(122, 106, 94));
-                    context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 2, tileRect.Y + 2, tileRect.Width - 4, 8), new Color(160, 82, 62));
-                }
+                context.Art.DrawWorldTile(context.SpriteBatch, map, new Point(x, y));
             }
         }
 
+        var animationTime = (float)gameTime.TotalGameTime.TotalSeconds;
+
         foreach (var pickup in map.Pickups)
         {
-            if (session.Progression.HasFlag(pickup.CollectedFlag))
+            if (!session.Progression.HasFlag(pickup.CollectedFlag))
             {
-                continue;
+                var bobOffset = (int)MathF.Round(MathF.Sin((animationTime * 3.4f) + pickup.X + pickup.Y) * 2f);
+                var tileRect = new Rectangle(pickup.X * tileSize, (pickup.Y * tileSize) + bobOffset, tileSize, tileSize);
+                context.Art.DrawPickup(context.SpriteBatch, tileRect);
             }
-
-            DrawPickup(context, pickup, tileSize);
         }
 
         foreach (var terminal in map.PcTerminals)
         {
-            var tileRect = new Rectangle(terminal.X * tileSize, terminal.Y * tileSize, tileSize, tileSize);
-            context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 4, tileRect.Y + 24, 24, 4), new Color(86, 64, 44));
-            context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 6, tileRect.Y + 8, 20, 16), new Color(188, 222, 230));
-            context.PrimitiveRenderer.Outline(new Rectangle(tileRect.X + 6, tileRect.Y + 8, 20, 16), 2, new Color(80, 110, 140));
-            context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 11, tileRect.Y + 12, 10, 6), new Color(94, 148, 176));
+            context.Art.DrawTerminal(context.SpriteBatch, new Rectangle(terminal.X * tileSize, terminal.Y * tileSize, tileSize, tileSize));
         }
 
         foreach (var npcPlacement in map.Npcs)
         {
             var npc = context.Definitions.Npcs[npcPlacement.NpcId];
             var defeated = !string.IsNullOrWhiteSpace(npc.TrainerDefeatedFlag) && session.Progression.HasFlag(npc.TrainerDefeatedFlag);
-            DrawCharacter(context, new Point(npcPlacement.X, npcPlacement.Y), new Point(npcPlacement.FacingX, npcPlacement.FacingY), GetNpcPalette(npc, defeated), false);
-
             if (npcPlacement.SightRange > 0 && !defeated)
             {
-                DrawSightHint(context, npcPlacement, map.TileSize);
+                DrawSightHint(context, npcPlacement, tileSize);
             }
+
+            DrawCharacter(
+                context,
+                new Point(npcPlacement.X, npcPlacement.Y),
+                new Point(npcPlacement.FacingX, npcPlacement.FacingY),
+                npc.VisualStyle,
+                defeated,
+                animationTime + (npcPlacement.X * 0.19f) + (npcPlacement.Y * 0.13f));
         }
 
-        DrawCharacter(context, session.PlayerTilePosition, session.FacingDirection, GetPlayerPalette(), true);
+        DrawCharacter(context, session.PlayerTilePosition, session.FacingDirection, "player", false, animationTime);
         context.SpriteBatch.End();
 
-        context.SpriteBatch.Begin();
-        DrawCompactTopHud(context, map.Name, GetAreaName(session.PlayerTilePosition), session);
-        DrawCompactBottomHud(context, session.StatusMessage, GetObjectiveText(session));
-        context.SpriteBatch.End();
+        if (session.WorldInfoPanelTimeRemaining > 0f)
+        {
+            context.SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
+            DrawWorldInfoPanel(context, map, session);
+            context.SpriteBatch.End();
+        }
     }
 
     private static Point GetStep(PyGame.Core.Input.InputSnapshot input)
     {
-        if (input.WasPressed(Keys.Up) || input.WasPressed(Keys.W)) return new Point(0, -1);
-        if (input.WasPressed(Keys.Down) || input.WasPressed(Keys.S)) return new Point(0, 1);
-        if (input.WasPressed(Keys.Left) || input.WasPressed(Keys.A)) return new Point(-1, 0);
-        if (input.WasPressed(Keys.Right) || input.WasPressed(Keys.D)) return new Point(1, 0);
+        if (input.WasRepeated(Keys.Up) || input.WasRepeated(Keys.W)) return new Point(0, -1);
+        if (input.WasRepeated(Keys.Down) || input.WasRepeated(Keys.S)) return new Point(0, 1);
+        if (input.WasRepeated(Keys.Left) || input.WasRepeated(Keys.A)) return new Point(-1, 0);
+        if (input.WasRepeated(Keys.Right) || input.WasRepeated(Keys.D)) return new Point(1, 0);
         return Point.Zero;
     }
 
@@ -255,68 +221,76 @@ public sealed class WorldState : IGameState
     {
         var session = context.Session;
         var target = session.PlayerTilePosition + step;
+        session.WorldInfoPanelTimeRemaining = 0f;
 
         if (!map.IsWalkable(target))
         {
             session.StatusMessage = "그쪽으로는 갈 수 없습니다.";
+            ShowWorldInfo(session, map.Name, session.StatusMessage, GetObjectiveText(session), 1.6f);
             return;
         }
 
         if (map.TryGetNpcAt(target, out _))
         {
-            session.StatusMessage = "누군가 길을 막고 있습니다.";
+            session.StatusMessage = "사람이 길을 막고 있습니다.";
+            ShowWorldInfo(session, map.Name, session.StatusMessage, GetObjectiveText(session), 1.6f);
             return;
         }
 
         session.PlayerTilePosition = target;
-        session.StatusMessage = $"{GetAreaName(target)}을 이동 중입니다.";
-
+        session.StatusMessage = $"{GetAreaName(map, target)}(으)로 이동했습니다.";
         if (map.TryGetWarpAt(target, out var warp))
         {
             session.CurrentMapId = warp.TargetMapId;
             session.PlayerTilePosition = new Point(warp.TargetX, warp.TargetY);
-            session.StatusMessage = $"{context.Definitions.Maps[warp.TargetMapId].Name}에 도착했습니다.";
+            session.StatusMessage = string.IsNullOrWhiteSpace(warp.TransitionText) ? $"{context.Definitions.Maps[warp.TargetMapId].Name}에 도착했습니다." : warp.TransitionText;
+            if (warp.TargetMapId == "pine_village")
+            {
+                session.Progression.TryAddFlag("visited_pine_village");
+            }
+
+            ShowWorldInfo(session, context.Definitions.Maps[warp.TargetMapId].Name, session.StatusMessage, GetObjectiveText(session), 2.2f);
             return;
         }
 
         TryCollectPickup(map, target, context);
-
-        if (!map.IsEncounterTile(target) || map.Encounters.Count == 0 || Random.Shared.NextDouble() >= 0.18d)
+        if (map.IsEncounterTile(target) && map.Encounters.Count > 0 && Random.Shared.NextDouble() < 0.18d)
         {
-            CheckTrainerSight(map, context);
+            StartWildEncounter(map, context);
             return;
         }
 
+        CheckTrainerSight(map, context);
+    }
+
+    private static void StartWildEncounter(WorldMap map, GameContext context)
+    {
+        var session = context.Session;
         if (!session.Party.EnsureUsableLead())
         {
             session.StatusMessage = "파티를 먼저 회복해야 합니다.";
+            ShowWorldInfo(session, map.Name, session.StatusMessage, "치료소나 회복 NPC를 이용하세요.", 2f);
             return;
         }
 
         var encounterDefinition = map.Encounters[Random.Shared.Next(map.Encounters.Count)];
         var species = context.Definitions.Species[encounterDefinition.CreatureId];
         var level = Random.Shared.Next(encounterDefinition.MinLevel, encounterDefinition.MaxLevel + 1);
-
         session.ActiveEncounter = new Encounter
         {
             IsTrainerBattle = false,
             OpponentName = "야생",
-            OpponentCreature = Creature.Create(species.Id, species.Name, level)
+            OpponentParty = [Creature.Create(species.Id, species.Name, level)]
         };
         session.ReturnState = GameStateId.World;
-        session.StatusMessage = $"야생 {species.Name}이 나타났다!";
+        session.StatusMessage = $"야생 {species.Name}이(가) 나타났다!";
         context.Audio.PlayBattleStart();
         context.StateManager.ChangeState(GameStateId.Battle);
     }
 
     private static void TryCollectPickup(WorldMap map, Point target, GameContext context)
     {
-        if (!map.TryGetPickupAt(target, out var pickup))
-        {
-            return;
-        }
-
-        if (context.Session.Progression.HasFlag(pickup.CollectedFlag))
+        if (!map.TryGetPickupAt(target, out var pickup) || context.Session.Progression.HasFlag(pickup.CollectedFlag))
         {
             return;
         }
@@ -325,6 +299,7 @@ public sealed class WorldState : IGameState
         context.Session.Progression.TryAddFlag(pickup.CollectedFlag);
         var item = context.Definitions.Items[pickup.ItemId];
         context.Session.StatusMessage = $"{item.Name} {pickup.Quantity}개를 주웠다.";
+        ShowWorldInfo(context.Session, "아이템 획득", context.Session.StatusMessage, GetObjectiveText(context.Session), 2.2f);
     }
 
     private static void CheckTrainerSight(WorldMap map, GameContext context)
@@ -339,17 +314,12 @@ public sealed class WorldState : IGameState
             }
 
             var npc = context.Definitions.Npcs[placement.NpcId];
-            if (!CanStartTrainerBattle(npc, session.Progression))
+            if (!CanStartTrainerBattle(npc, session.Progression) || !IsPlayerInSight(session.PlayerTilePosition, placement, map))
             {
                 continue;
             }
 
-            if (!IsPlayerInSight(session.PlayerTilePosition, placement, map))
-            {
-                continue;
-            }
-
-            StartTrainerBattle(npc, context, string.IsNullOrWhiteSpace(npc.TrainerNoticeText) ? $"{npc.Name}이 당신을 발견했다!" : npc.TrainerNoticeText);
+            StartTrainerBattle(npc, context, string.IsNullOrWhiteSpace(npc.TrainerNoticeText) ? $"{npc.Name}이(가) 플레이어를 발견했다!" : npc.TrainerNoticeText);
             return;
         }
     }
@@ -359,15 +329,23 @@ public sealed class WorldState : IGameState
         if (!context.Session.Party.EnsureUsableLead())
         {
             context.Session.StatusMessage = "파티를 먼저 회복해야 합니다.";
+            ShowWorldInfo(context.Session, npc.Name, context.Session.StatusMessage, "치료 후 다시 도전하세요.", 2f);
             return;
         }
 
-        var species = context.Definitions.Species[npc.TrainerCreatureId];
+        var roster = npc.TrainerRoster.Count > 0
+            ? npc.TrainerRoster.Select(entry =>
+            {
+                var species = context.Definitions.Species[entry.CreatureId];
+                return Creature.Create(species.Id, species.Name, entry.Level);
+            }).ToList()
+            : [Creature.Create(context.Definitions.Species[npc.TrainerCreatureId].Id, context.Definitions.Species[npc.TrainerCreatureId].Name, npc.TrainerCreatureLevel)];
+
         context.Session.ActiveEncounter = new Encounter
         {
             IsTrainerBattle = true,
             OpponentName = npc.Name,
-            OpponentCreature = Creature.Create(species.Id, species.Name, npc.TrainerCreatureLevel),
+            OpponentParty = roster,
             TrainerDefeatedFlag = npc.TrainerDefeatedFlag,
             TrainerVictoryFlag = npc.TrainerVictoryFlag
         };
@@ -394,9 +372,7 @@ public sealed class WorldState : IGameState
 
     private static List<string> ResolveDialogueLines(NpcDefinition npc, Domain.Progression.GameProgression progression)
     {
-        if (!string.IsNullOrWhiteSpace(npc.ConditionalDialogueFlag) &&
-            progression.HasFlag(npc.ConditionalDialogueFlag) &&
-            npc.ConditionalDialogueLines.Count > 0)
+        if (!string.IsNullOrWhiteSpace(npc.ConditionalDialogueFlag) && progression.HasFlag(npc.ConditionalDialogueFlag) && npc.ConditionalDialogueLines.Count > 0)
         {
             return npc.ConditionalDialogueLines;
         }
@@ -414,20 +390,15 @@ public sealed class WorldState : IGameState
             }
 
             var delta = playerTile.X - placement.X;
-            var inRange = placement.FacingX > 0
-                ? delta > 0 && delta <= placement.SightRange
-                : delta < 0 && -delta <= placement.SightRange;
-
+            var inRange = placement.FacingX > 0 ? delta > 0 && delta <= placement.SightRange : delta < 0 && -delta <= placement.SightRange;
             if (!inRange)
             {
                 return false;
             }
 
-            var distance = Math.Abs(delta);
-            for (var i = 1; i < distance; i++)
+            for (var i = 1; i < Math.Abs(delta); i++)
             {
-                var sightPoint = new Point(placement.X + (placement.FacingX * i), placement.Y);
-                if (!map.IsWalkable(sightPoint))
+                if (!map.IsWalkable(new Point(placement.X + (placement.FacingX * i), placement.Y)))
                 {
                     return false;
                 }
@@ -442,20 +413,15 @@ public sealed class WorldState : IGameState
         }
 
         var verticalDelta = playerTile.Y - placement.Y;
-        var verticalInRange = placement.FacingY > 0
-            ? verticalDelta > 0 && verticalDelta <= placement.SightRange
-            : verticalDelta < 0 && -verticalDelta <= placement.SightRange;
-
+        var verticalInRange = placement.FacingY > 0 ? verticalDelta > 0 && verticalDelta <= placement.SightRange : verticalDelta < 0 && -verticalDelta <= placement.SightRange;
         if (!verticalInRange)
         {
             return false;
         }
 
-        var verticalDistance = Math.Abs(verticalDelta);
-        for (var i = 1; i < verticalDistance; i++)
+        for (var i = 1; i < Math.Abs(verticalDelta); i++)
         {
-            var sightPoint = new Point(placement.X, placement.Y + (placement.FacingY * i));
-            if (!map.IsWalkable(sightPoint))
+            if (!map.IsWalkable(new Point(placement.X, placement.Y + (placement.FacingY * i))))
             {
                 return false;
             }
@@ -475,48 +441,31 @@ public sealed class WorldState : IGameState
         for (var i = 1; i <= placement.SightRange; i++)
         {
             var point = new Point(placement.X + (step.X * i), placement.Y + (step.Y * i));
-            var tileRect = new Rectangle(point.X * tileSize, point.Y * tileSize, tileSize, tileSize);
-            context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 10, tileRect.Width - 20, tileRect.Height - 20), new Color(248, 236, 176, 36));
+            context.Art.DrawSightMarker(context.SpriteBatch, new Rectangle(point.X * tileSize, point.Y * tileSize, tileSize, tileSize));
         }
     }
 
-    private static void DrawPickup(GameContext context, WorldPickup pickup, int tileSize)
+    private static void DrawWorldInfoPanel(GameContext context, WorldMap map, GameSession session)
     {
-        var tileRect = new Rectangle(pickup.X * tileSize, pickup.Y * tileSize, tileSize, tileSize);
-        context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 20, 12, 6), new Color(250, 246, 232));
-        context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 10, tileRect.Y + 10, 12, 11), new Color(208, 64, 72));
-        context.PrimitiveRenderer.Fill(new Rectangle(tileRect.X + 11, tileRect.Y + 14, 10, 4), new Color(250, 242, 212));
-        context.PrimitiveRenderer.Outline(new Rectangle(tileRect.X + 10, tileRect.Y + 10, 12, 16), 1, new Color(60, 34, 34));
+        var rect = new Rectangle(18, 426, 924, 96);
+        context.UiSkin.DrawPanel(context.SpriteBatch, rect);
+        var title = string.IsNullOrWhiteSpace(session.WorldInfoTitle) ? $"{map.Name} | {GetAreaName(map, session.PlayerTilePosition)}" : session.WorldInfoTitle;
+        context.TextRenderer.DrawText(new Vector2(36, 438), title, 2, new Color(246, 236, 192));
+        context.TextRenderer.DrawText(new Vector2(36, 464), session.StatusMessage, 1, new Color(238, 240, 230));
+        context.TextRenderer.DrawText(new Vector2(36, 486), string.IsNullOrWhiteSpace(session.WorldInfoDetail) ? GetObjectiveText(session) : session.WorldInfoDetail, 1, new Color(208, 218, 226));
     }
 
-    private static void DrawCompactTopHud(GameContext context, string mapName, string areaName, GameSession session)
+    private static string GetAreaName(WorldMap map, Point tilePosition)
     {
-        context.PrimitiveRenderer.Fill(new Rectangle(16, 16, 316, 56), new Color(10, 18, 24, 210));
-        context.PrimitiveRenderer.Outline(new Rectangle(16, 16, 316, 56), 2, new Color(198, 176, 96));
-        context.TextRenderer.DrawText(new Vector2(28, 28), mapName, 2, new Color(246, 236, 192));
-        context.TextRenderer.DrawText(new Vector2(168, 28), $"| {areaName}", 2, new Color(214, 226, 212));
-
-        context.PrimitiveRenderer.Fill(new Rectangle(694, 16, 250, 56), new Color(10, 18, 24, 210));
-        context.PrimitiveRenderer.Outline(new Rectangle(694, 16, 250, 56), 2, new Color(198, 176, 96));
-        context.TextRenderer.DrawText(new Vector2(708, 28), $"돈 {session.Money}  마크 {session.Progression.BadgeCount}", 2, new Color(246, 236, 192));
-        context.TextRenderer.DrawText(new Vector2(708, 50), $"선두 {session.Party.ActiveCreature.Nickname}", 1, new Color(220, 228, 210));
-    }
-
-    private static void DrawCompactBottomHud(GameContext context, string statusMessage, string objectiveText)
-    {
-        context.PrimitiveRenderer.Fill(new Rectangle(16, 470, 928, 54), new Color(10, 18, 24, 210));
-        context.PrimitiveRenderer.Outline(new Rectangle(16, 470, 928, 54), 2, new Color(198, 176, 96));
-        context.TextRenderer.DrawText(new Vector2(28, 482), statusMessage, 1, new Color(246, 236, 192));
-        context.TextRenderer.DrawText(new Vector2(28, 500), objectiveText, 1, new Color(216, 226, 232));
-    }
-
-    private static string GetAreaName(Point tilePosition)
-    {
-        return tilePosition.X switch
+        return map.GetTileType(tilePosition) switch
         {
-            <= 12 => "새싹마을 광장",
-            <= 25 => "동쪽 1번길",
-            _ => "바람숲 입구"
+            TileType.Grass => "풀숲",
+            TileType.Path => "길목",
+            TileType.Building => "건물 벽면",
+            TileType.Door => "출입구",
+            TileType.Counter => "카운터 앞",
+            TileType.Service => "서비스 구역",
+            _ => string.IsNullOrWhiteSpace(map.AreaLabel) ? map.Name : map.AreaLabel
         };
     }
 
@@ -524,136 +473,70 @@ public sealed class WorldState : IGameState
     {
         if (!session.Progression.HasFlag("objective_route_challenge"))
         {
-            return "안내인에게 말을 걸어 첫 목표를 받으세요.  B 가방  P 파티  ESC 메뉴";
+            return "안내원 유나에게 말을 걸어 첫 목표를 받으세요.  B 가방  P 파티  ESC 메뉴";
         }
 
         if (!session.Progression.HasFlag("trainer_route_scout_defeated"))
         {
-            return "동쪽 1번길의 정찰원 리노를 이기고 길을 여세요.  Enter / Space 조사";
+            return "해솔길 중앙의 정찰원 리노를 이기고 숲으로 향하세요.";
         }
 
         if (!session.Progression.HasFlag("milestone_route_mark_claimed"))
         {
-            return "안내인에게 돌아가 바람길 마크와 보상을 받으세요.";
+            return "해솔마을로 돌아가 안내원 유나에게 보상을 받으세요.";
         }
 
         if (!session.Progression.HasFlag("trainer_forest_rookie_defeated"))
         {
-            return "바람숲 입구의 숲길 연수생까지 둘러보며 길의 끝을 확인하세요.";
+            return "속삭임 숲 안쪽의 수련생을 넘기고 숲길을 지나가세요.";
         }
 
-        if (!session.Progression.HasFlag("pickup_grove_sphere"))
+        if (!session.Progression.HasFlag("visited_pine_village"))
         {
-            return "바람숲 입구를 둘러보고 반짝이는 물건도 챙겨 보세요.";
+            return "숲을 빠져나가 바람개울 마을까지 도달해 보세요.";
         }
 
-        return "마을 시설을 이용하며 다음 지역으로 떠날 준비를 하세요.";
+        return "새 마을 시설을 둘러보고 다음 지역 준비를 하세요.";
     }
 
-    private static void DrawCharacter(GameContext context, Point tilePosition, Point facingDirection, CharacterPalette palette, bool isPlayer)
+    private static void ShowEnvironmentInfo(GameSession session, WorldMap map, Point inspectTile)
+    {
+        var detail = map.GetTileType(inspectTile) switch
+        {
+            TileType.Grass => "바람에 흔들리는 풀숲입니다. 야생 몬스터가 튀어나올 수 있습니다.",
+            TileType.Path => "많은 사람이 오간 길입니다. 다음 지역으로 이어집니다.",
+            TileType.Tree => "키 큰 나무가 길을 막고 있습니다.",
+            TileType.Building => "단단한 건물 외벽입니다.",
+            TileType.Door => "문이 보입니다. 들어갈 수 있는 장소일지도 모릅니다.",
+            TileType.Counter => "업무를 보는 카운터입니다.",
+            TileType.Service => "시설 기능이 있는 구역입니다.",
+            _ => "주변을 둘러보며 현재 위치와 목표를 정리합니다."
+        };
+        ShowWorldInfo(session, $"{map.Name} | {GetAreaName(map, session.PlayerTilePosition)}", detail, GetObjectiveText(session), 4f);
+    }
+
+    private static void ShowWorldInfo(GameSession session, string title, string body, string detail, float seconds)
+    {
+        session.WorldInfoTitle = title;
+        session.StatusMessage = body;
+        session.WorldInfoDetail = detail;
+        session.WorldInfoPanelTimeRemaining = seconds;
+    }
+
+    private static void DrawCharacter(GameContext context, Point tilePosition, Point facingDirection, string visualStyle, bool defeated, float animationTime)
     {
         var tileSize = context.Definitions.Maps[context.Session.CurrentMapId].TileSize;
         var baseX = tilePosition.X * tileSize;
         var baseY = tilePosition.Y * tileSize;
-
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 8, baseY + 24, 16, 4), new Color(0, 0, 0, 70));
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 11, baseY + 8, 10, 10), palette.Head);
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 10, baseY + 16, 12, 10), palette.Body);
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 10, baseY + 25, 5, 5), palette.Accent);
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 17, baseY + 25, 5, 5), palette.Accent);
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 9, baseY + 7, 14, 3), palette.Hat);
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 8, baseY + 17, 2, 8), palette.Hat);
-        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 22, baseY + 17, 2, 8), palette.Hat);
-        context.PrimitiveRenderer.Outline(new Rectangle(baseX + 10, baseY + 8, 12, 18), 1, new Color(32, 28, 26));
-
-        if (facingDirection.Y > 0)
-        {
-            context.PrimitiveRenderer.Fill(new Rectangle(baseX + 13, baseY + 18, 2, 2), new Color(32, 28, 26));
-            context.PrimitiveRenderer.Fill(new Rectangle(baseX + 17, baseY + 18, 2, 2), new Color(32, 28, 26));
-            if (isPlayer)
-            {
-                context.PrimitiveRenderer.Fill(new Rectangle(baseX + 11, baseY + 16, 10, 4), new Color(98, 124, 60));
-            }
-        }
-        else if (facingDirection.Y < 0)
-        {
-            context.PrimitiveRenderer.Fill(new Rectangle(baseX + 12, baseY + 9, 8, 2), palette.Accent);
-            if (isPlayer)
-            {
-                context.PrimitiveRenderer.Fill(new Rectangle(baseX + 11, baseY + 21, 10, 5), new Color(98, 124, 60));
-            }
-        }
-        else if (facingDirection.X > 0)
-        {
-            context.PrimitiveRenderer.Fill(new Rectangle(baseX + 18, baseY + 17, 2, 2), new Color(32, 28, 26));
-            if (isPlayer)
-            {
-                context.PrimitiveRenderer.Fill(new Rectangle(baseX + 10, baseY + 17, 3, 8), new Color(98, 124, 60));
-            }
-        }
-        else if (facingDirection.X < 0)
-        {
-            context.PrimitiveRenderer.Fill(new Rectangle(baseX + 12, baseY + 17, 2, 2), new Color(32, 28, 26));
-            if (isPlayer)
-            {
-                context.PrimitiveRenderer.Fill(new Rectangle(baseX + 19, baseY + 17, 3, 8), new Color(98, 124, 60));
-            }
-        }
-
-        if (isPlayer)
-        {
-            context.PrimitiveRenderer.Outline(new Rectangle(baseX + 9, baseY + 7, 14, 23), 1, new Color(250, 234, 140));
-        }
+        var alternateFrame = !defeated && ((int)(animationTime * 5.5f) % 2 == 1);
+        var bobOffset = defeated ? 0 : (int)MathF.Round(MathF.Sin(animationTime * 5.5f) * 1.4f);
+        context.PrimitiveRenderer.Fill(new Rectangle(baseX + 8, baseY + 25, 16, 4), new Color(0, 0, 0, alternateFrame ? 80 : 92));
+        context.Art.DrawCharacter(
+            context.SpriteBatch,
+            visualStyle,
+            facingDirection,
+            new Rectangle(baseX + 8, baseY + 5 + bobOffset, 16, 16),
+            defeated,
+            alternateFrame);
     }
-
-    private static CharacterPalette GetPlayerPalette()
-    {
-        return new CharacterPalette(
-            new Color(224, 198, 140),
-            new Color(208, 82, 68),
-            new Color(52, 78, 148),
-            new Color(242, 236, 166));
-    }
-
-    private static CharacterPalette GetNpcPalette(NpcDefinition npc, bool defeated)
-    {
-        var palette = npc.VisualStyle switch
-        {
-            "elder" => new CharacterPalette(
-                new Color(228, 206, 162),
-                new Color(118, 92, 160),
-                new Color(92, 70, 124),
-                new Color(238, 228, 184)),
-            "healer" => new CharacterPalette(
-                new Color(236, 210, 182),
-                new Color(248, 244, 246),
-                new Color(188, 72, 96),
-                new Color(242, 192, 208)),
-            "shopkeeper" => new CharacterPalette(
-                new Color(232, 208, 178),
-                new Color(196, 146, 74),
-                new Color(112, 76, 38),
-                new Color(248, 230, 156)),
-            "scout" => new CharacterPalette(
-                new Color(226, 202, 152),
-                new Color(94, 154, 96),
-                new Color(74, 96, 62),
-                new Color(238, 224, 154)),
-            _ => new CharacterPalette(
-                new Color(224, 198, 150),
-                new Color(72, 138, 174),
-                new Color(62, 86, 124),
-                new Color(250, 238, 178))
-        };
-
-        return defeated
-            ? new CharacterPalette(
-                new Color(Math.Max(50, palette.Head.R - 60), Math.Max(50, palette.Head.G - 60), Math.Max(50, palette.Head.B - 60)),
-                new Color(Math.Max(50, palette.Body.R - 60), Math.Max(50, palette.Body.G - 60), Math.Max(50, palette.Body.B - 60)),
-                new Color(Math.Max(50, palette.Hat.R - 60), Math.Max(50, palette.Hat.G - 60), Math.Max(50, palette.Hat.B - 60)),
-                new Color(Math.Max(50, palette.Accent.R - 60), Math.Max(50, palette.Accent.G - 60), Math.Max(50, palette.Accent.B - 60)))
-            : palette;
-    }
-
-    private readonly record struct CharacterPalette(Color Head, Color Body, Color Hat, Color Accent);
 }

@@ -7,4 +7,5 @@ public sealed class MapWarp
     public string TargetMapId { get; init; } = string.Empty;
     public int TargetX { get; init; }
     public int TargetY { get; init; }
+    public string TransitionText { get; init; } = string.Empty;
 }
