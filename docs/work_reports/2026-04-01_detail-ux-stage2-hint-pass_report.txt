@@ -1,0 +1,26 @@
+Summary
+- `InputHintRenderer`를 도입하고 컨텍스트에 연결하여 모든 화면에 `Esc/Enter/I` 입력 안내를 공통적으로 스킨 처리했습니다.
+- 전투 메시지 영역을 확대하고 동작별(행동, 기술, 아이템, 교체) 안내를 재정의한 뒤 오른쪽 상단에 입력 힌트 패널을 배치해 시야를 확보했습니다.
+- 월드 상태 메시지 패널 높이를 조정하고 `I` 키로 주변 정보를 계속 보여주는 흐름을 유지하면서, 지도와 UI의 간섭을 우측 상단으로 밀어내는 기반을 정리했습니다.
+
+Files changed
+- UI/Hud/InputHintRenderer.cs
+- GameFlow/StateManager/GameContext.cs
+- Core/Game1.cs
+- GameFlow/States/Battle/BattleState.cs
+- GameFlow/States/World/WorldState.cs
+
+UX 체크리스트 반영
+- 전장/월드 주요 메뉴의 패널을 다시 캡슐화하고, 안내 문구를 상태별로 분리하여 `ESC/Enter` 조작 가독성과 선택감이 향상됐습니다.
+- 상시 `InputHintRenderer`를 통해 화살표 입력과 추가 단축키를 명시하되, 고정 위치를 오른쪽 상단으로 옮겨 지도 시야를 덜 가립니다.
+- `I` 키 설명과 목표/상태 정보는 아래 패널에서 계속 제공하면서, 새로 만든 힌트 박스와 충돌하지 않도록 배치를 정리했습니다.
+
+Build command run
+- `dotnet build PyGame.sln`
+
+Build result
+- 성공
+
+Remaining issues
+- 전투 힌트 패널이 여전히 고정 위치라서 UI 밀도에 따라 다른 화면과 충돌할 수 있으므로 다음 UX 단계에서 위치 옵션(애니메이션/테마 등)을 검토할 예정입니다.
+- 왼쪽 상단 설명 박스의 위치는 이번 변경으로 오른쪽 상단으로 옮겨졌지만, 다음 “맵/카메라/타일” 체크리스트에서는 맵 전체 레이아웃과 UI 여백을 다시 검토하여 가장 자연스러운 위치를 완성하겠습니다.

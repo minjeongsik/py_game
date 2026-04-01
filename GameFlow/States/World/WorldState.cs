@@ -5,6 +5,8 @@ using PyGame.Domain.Battle;
 using PyGame.Domain.Creatures;
 using PyGame.Domain.Npc;
 using PyGame.Domain.World;
+using PyGame.GameFlow.Simulation;
+using PyGame.GameFlow.States.Job;
 using PyGame.GameFlow.StateManager;
 
 namespace PyGame.GameFlow.States.World;
@@ -20,25 +22,26 @@ public sealed class WorldState : IGameState
         var session = context.Session;
         session.WorldInfoPanelTimeRemaining = Math.Max(0f, session.WorldInfoPanelTimeRemaining - (float)gameTime.ElapsedGameTime.TotalSeconds);
         var map = context.Definitions.Maps[session.CurrentMapId];
+        RuntimeWorldSimulation.EnsureInitialized(session, context.Definitions);
 
         if (context.Input.WasPressed(Keys.Escape))
         {
             session.ReturnState = GameStateId.World;
-            context.StateManager.ChangeState(GameStateId.Pause);
+            context.StateManager.PushState(GameStateId.Pause);
             return;
         }
 
         if (context.Input.WasPressed(Keys.P))
         {
             session.ReturnState = GameStateId.World;
-            context.StateManager.ChangeState(GameStateId.Party);
+            context.StateManager.PushState(GameStateId.Party);
             return;
         }
 
         if (context.Input.WasPressed(Keys.B))
         {
             session.ReturnState = GameStateId.World;
-            context.StateManager.ChangeState(GameStateId.Bag);
+            context.StateManager.PushState(GameStateId.Bag);
             return;
         }
 
@@ -50,18 +53,48 @@ public sealed class WorldState : IGameState
             return;
         }
 
+        var target = session.PlayerTilePosition + session.FacingDirection;
+        if (context.Input.WasPressed(Keys.I))
+        {
+            ShowEnvironmentInfo(session, map, target);
+            return;
+        }
+
         if (!context.Input.WasPressed(Keys.Space) && !context.Input.WasPressed(Keys.Enter))
         {
             return;
         }
+        if (TryOpenSurveySpot(context, map, target))
+        {
+            return;
+        }
 
-        var target = session.PlayerTilePosition + session.FacingDirection;
+        if (TryOpenSecurityDuty(context, map, target))
+        {
+            return;
+        }
+
+        if (TryOpenIndustryDuty(context, map, target))
+        {
+            return;
+        }
+
         if (map.TryGetPcTerminalAt(target, out var terminal))
         {
             session.ReturnState = GameStateId.World;
             session.StatusMessage = $"{terminal.Label}에 접속했습니다.";
-            ShowWorldInfo(session, "PC 단말기", session.StatusMessage, "보관함 화면으로 이동합니다.", 2.4f);
-            context.StateManager.ChangeState(GameStateId.Storage);
+            ShowWorldInfo(session, "PC 연결", session.StatusMessage, "보관함 화면으로 이동합니다.", 2.4f);
+            context.StateManager.PushState(GameStateId.Storage);
+            return;
+        }
+
+        if (map.TryGetBulletinBoardAt(target, out var board))
+        {
+            session.CurrentBoardLabel = board.Label;
+            session.CurrentBoardNoticeIds = board.NoticeIds;
+            session.ReturnState = GameStateId.World;
+            session.StatusMessage = $"{board.Label} 공고를 펼쳐 봅니다.";
+            context.StateManager.PushState(GameStateId.Board);
             return;
         }
 
@@ -72,6 +105,23 @@ public sealed class WorldState : IGameState
         }
 
         var npc = context.Definitions.Npcs[npcPlacement.NpcId];
+        if (ShouldOpenResidence(npc, session))
+        {
+            session.ReturnState = GameStateId.World;
+            session.StatusMessage = $"{npc.Name}이(가) 길드 배정 숙소와 생활 서비스 현황을 보여 줍니다.";
+            context.StateManager.PushState(GameStateId.Residence);
+            return;
+        }
+
+        if (JobState.ShouldOpenJobOffice(npc.Id, session))
+        {
+            JobState.PrepareJobOffice(session, npc.Id);
+            session.ReturnState = GameStateId.World;
+            session.StatusMessage = $"{npc.Name}이(가) 오늘 근무를 안내합니다.";
+            context.StateManager.PushState(GameStateId.Job);
+            return;
+        }
+
         if (npc.HealsParty)
         {
             session.Party.HealAll(context.Definitions.Moves);
@@ -79,16 +129,24 @@ public sealed class WorldState : IGameState
             session.RecoveryMapId = session.CurrentMapId;
             session.RecoveryTilePosition = session.PlayerTilePosition;
             session.StatusMessage = $"{npc.Name}이(가) 파티를 회복해 주었습니다.";
-            ShowWorldInfo(session, npc.Name, session.StatusMessage, "회복 후 다시 모험을 이어가세요.", 2.6f);
+            ShowWorldInfo(session, npc.Name, session.StatusMessage, "다음 조사 구간으로 이동하기 전에 상태를 정비하세요.", 2.6f);
             return;
         }
 
         if (npc.OpensShop)
         {
-            session.CurrentShopItemIds = npc.ShopItemIds;
+            session.CurrentShopItemIds = GetShopItemIds(npc, context);
             session.ReturnState = GameStateId.World;
-            session.StatusMessage = $"{npc.Name}의 상점을 둘러봅니다.";
-            context.StateManager.ChangeState(GameStateId.Shop);
+            session.StatusMessage = $"{npc.Name}의 보급 상점을 둘러봅니다.";
+            context.StateManager.PushState(GameStateId.Shop);
+            return;
+        }
+
+        if (ShouldOpenTradeHub(npc, session))
+        {
+            session.ReturnState = GameStateId.World;
+            session.StatusMessage = $"{npc.Name}이(가) 바람개울 교역 허브 안내를 열어 줍니다.";
+            context.StateManager.PushState(GameStateId.Trade);
             return;
         }
 
@@ -101,18 +159,24 @@ public sealed class WorldState : IGameState
         var statusLocked = false;
         if (npc.StartsTrainerBattle && session.Progression.HasFlag(npc.TrainerDefeatedFlag))
         {
-            session.StatusMessage = $"{npc.Name}은(는) 이미 실력을 인정했습니다.";
+            session.StatusMessage = $"{npc.Name}은(는) 이미 통과 점검을 마친 상태라고 말합니다.";
             statusLocked = true;
         }
         else if (!string.IsNullOrWhiteSpace(npc.TrainerRequiredFlag) && !session.Progression.HasFlag(npc.TrainerRequiredFlag))
         {
-            session.StatusMessage = $"{npc.Name}은(는) 아직 준비를 더 하라고 말합니다.";
+            session.StatusMessage = $"{npc.Name}은(는) 먼저 접수원에게 조사 목표를 받으라고 말합니다.";
             statusLocked = true;
         }
 
         if (session.Progression.TryAddFlag(npc.GrantsFlagOnTalk))
         {
-            session.StatusMessage = $"{npc.Name}에게서 새 목표를 받았습니다.";
+            session.StatusMessage = $"{npc.Name}에게서 첫 조사 의뢰를 받았습니다.";
+            ShowWorldInfo(
+                session,
+                "첫 조사 의뢰",
+                session.StatusMessage,
+                "해솔길에서 정찰원 리노의 통과 점검을 마치고 접수원 유나에게 보고하세요.",
+                2.8f);
             statusLocked = true;
         }
 
@@ -128,7 +192,13 @@ public sealed class WorldState : IGameState
                 session.Inventory.Add(npc.RewardItemId, npc.RewardItemQuantity);
             }
 
-            session.StatusMessage = $"{npc.Name}에게서 표식과 보상을 받았습니다.";
+            session.StatusMessage = $"{npc.Name}이(가) 첫 조사 보고를 접수하고 보상을 지급했습니다.";
+            ShowWorldInfo(
+                session,
+                "첫 조사 보고 완료",
+                session.StatusMessage,
+                "다음 목표: 속삭임 숲을 지나 바람개울 교역 거점까지 조사 기록을 이어가세요.",
+                3f);
             rewardGranted = true;
             statusLocked = true;
         }
@@ -142,6 +212,71 @@ public sealed class WorldState : IGameState
         }
 
         context.StateManager.ChangeState(GameStateId.Dialogue);
+    }
+
+    private static bool TryOpenSurveySpot(GameContext context, WorldMap map, Point target)
+    {
+        var session = context.Session;
+        if (!SurveyRuntime.CanSurveySpot(session, map, target))
+        {
+            return false;
+        }
+
+        var finding = SurveyRuntime.BuildFinding(context.Definitions, session.Party.ActiveCreature, map, target);
+        session.CurrentSurveyFindingTitle = finding.Title;
+        session.CurrentSurveyFindingSummary = finding.Summary;
+        session.CurrentSurveyFindingQuality = finding.Quality;
+        session.CurrentSurveyRecommendedTag = finding.RecommendedTag;
+        session.CurrentSurveyPerformanceBonus = finding.PerformanceBonus;
+        session.CurrentSurveySucceeded = finding.Succeeded;
+        session.ReturnState = GameStateId.World;
+        session.StatusMessage = $"{finding.Title} 지점을 발견했습니다.";
+        context.StateManager.PushState(GameStateId.Survey);
+        return true;
+    }
+
+    private static bool TryOpenSecurityDuty(GameContext context, WorldMap map, Point target)
+    {
+        var session = context.Session;
+        if (!SecurityDutyRuntime.CanInspect(session, map, target))
+        {
+            return false;
+        }
+
+        var finding = SecurityDutyRuntime.BuildFinding(context.Definitions, session.Party.ActiveCreature, map, target);
+        session.CurrentSecurityDutyTitle = finding.Title;
+        session.CurrentSecurityDutySummary = finding.Summary;
+        session.CurrentSecurityDutyZone = finding.Zone;
+        session.CurrentSecurityRecommendedTag = finding.RecommendedTag;
+        session.CurrentSecurityPerformanceBonus = finding.PerformanceBonus;
+        session.CurrentSecurityHazardBonus = finding.HazardBonus;
+        session.CurrentSecurityThreatConfirmed = finding.ThreatConfirmed;
+        session.ReturnState = GameStateId.World;
+        session.StatusMessage = $"{finding.Zone} 순찰 기록을 정리합니다.";
+        context.StateManager.PushState(GameStateId.SecurityDuty);
+        return true;
+    }
+
+    private static bool TryOpenIndustryDuty(GameContext context, WorldMap map, Point target)
+    {
+        var session = context.Session;
+        if (!IndustryDutyRuntime.CanInspect(session, map, target))
+        {
+            return false;
+        }
+
+        var finding = IndustryDutyRuntime.BuildFinding(context.Definitions, session.Party.ActiveCreature, target);
+        session.CurrentIndustryDutyTitle = finding.Title;
+        session.CurrentIndustryDutySummary = finding.Summary;
+        session.CurrentIndustryDutyZone = finding.Zone;
+        session.CurrentIndustryRecommendedTag = finding.RecommendedTag;
+        session.CurrentIndustryPerformanceBonus = finding.PerformanceBonus;
+        session.CurrentIndustryResourceId = finding.ResourceId;
+        session.CurrentIndustryResourceQuantity = finding.ResourceQuantity;
+        session.ReturnState = GameStateId.World;
+        session.StatusMessage = $"{finding.Title} 작업 지점을 확인했습니다.";
+        context.StateManager.PushState(GameStateId.IndustryDuty);
+        return true;
     }
 
     public void Draw(GameTime gameTime, GameContext context)
@@ -179,6 +314,11 @@ public sealed class WorldState : IGameState
             context.Art.DrawTerminal(context.SpriteBatch, new Rectangle(terminal.X * tileSize, terminal.Y * tileSize, tileSize, tileSize));
         }
 
+        foreach (var board in map.BulletinBoards)
+        {
+            context.Art.DrawBulletinBoard(context.SpriteBatch, new Rectangle(board.X * tileSize, board.Y * tileSize, tileSize, tileSize));
+        }
+
         foreach (var npcPlacement in map.Npcs)
         {
             var npc = context.Definitions.Npcs[npcPlacement.NpcId];
@@ -198,6 +338,23 @@ public sealed class WorldState : IGameState
         }
 
         DrawCharacter(context, session.PlayerTilePosition, session.FacingDirection, "player", false, animationTime);
+        context.SpriteBatch.End();
+
+        var hintLines = new[]
+        {
+            "방향키 / WASD : 이동",
+            "Enter / Space : 상호작용",
+            "I : 주변 정보",
+            "Esc : 메뉴"
+        };
+        var hintHeight = 16 + (hintLines.Length * 18);
+        const int hintWidth = 320;
+        var hintX = context.Viewport.Width - hintWidth - 24;
+        context.SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
+        context.InputHints.DrawHints(
+            context.SpriteBatch,
+            new Rectangle(hintX, 12, hintWidth, hintHeight),
+            hintLines);
         context.SpriteBatch.End();
 
         if (session.WorldInfoPanelTimeRemaining > 0f)
@@ -243,16 +400,30 @@ public sealed class WorldState : IGameState
         {
             session.CurrentMapId = warp.TargetMapId;
             session.PlayerTilePosition = new Point(warp.TargetX, warp.TargetY);
+            RuntimeWorldSimulation.AdvanceForMovement(session, context.Definitions, 1, true);
             session.StatusMessage = string.IsNullOrWhiteSpace(warp.TransitionText) ? $"{context.Definitions.Maps[warp.TargetMapId].Name}에 도착했습니다." : warp.TransitionText;
             if (warp.TargetMapId == "pine_village")
             {
-                session.Progression.TryAddFlag("visited_pine_village");
+                if (session.Progression.TryAddFlag("visited_pine_village"))
+                {
+                    session.Resources.Add("brook_fish", 4);
+                    session.StatusMessage = "바람개울 마을에 도착했습니다. 교역소 체험용 민물고기 상자를 받았습니다.";
+                }
             }
 
-            ShowWorldInfo(session, context.Definitions.Maps[warp.TargetMapId].Name, session.StatusMessage, GetObjectiveText(session), 2.2f);
+            var regionSummary = RuntimeWorldSimulation.BuildRegionSummary(session, context.Definitions, warp.TargetMapId);
+            ShowWorldInfo(
+                session,
+                context.Definitions.Maps[warp.TargetMapId].Name,
+                session.StatusMessage,
+                string.IsNullOrWhiteSpace(regionSummary) ? GetObjectiveText(session) : regionSummary,
+                2.4f);
+            JobState.TryAdvanceFieldExecution(session, context.Definitions);
             return;
         }
 
+        RuntimeWorldSimulation.AdvanceForMovement(session, context.Definitions, 1, false);
+        JobState.TryAdvanceFieldExecution(session, context.Definitions);
         TryCollectPickup(map, target, context);
         if (map.IsEncounterTile(target) && map.Encounters.Count > 0 && Random.Shared.NextDouble() < 0.18d)
         {
@@ -269,7 +440,7 @@ public sealed class WorldState : IGameState
         if (!session.Party.EnsureUsableLead())
         {
             session.StatusMessage = "파티를 먼저 회복해야 합니다.";
-            ShowWorldInfo(session, map.Name, session.StatusMessage, "치료소나 회복 NPC를 이용하세요.", 2f);
+            ShowWorldInfo(session, map.Name, session.StatusMessage, "치료소나 회복 지원소를 이용하세요.", 2f);
             return;
         }
 
@@ -280,7 +451,7 @@ public sealed class WorldState : IGameState
         {
             IsTrainerBattle = false,
             OpponentName = "야생",
-            OpponentParty = [Creature.Create(species.Id, species.Name, level)]
+            OpponentParty = [MonsterWorkRuntime.CreateCreature(context.Definitions, species.Id, species.Name, level)]
         };
         session.ReturnState = GameStateId.World;
         session.StatusMessage = $"야생 {species.Name}이(가) 나타났다!";
@@ -299,7 +470,7 @@ public sealed class WorldState : IGameState
         context.Session.Progression.TryAddFlag(pickup.CollectedFlag);
         var item = context.Definitions.Items[pickup.ItemId];
         context.Session.StatusMessage = $"{item.Name} {pickup.Quantity}개를 주웠다.";
-        ShowWorldInfo(context.Session, "아이템 획득", context.Session.StatusMessage, GetObjectiveText(context.Session), 2.2f);
+        ShowWorldInfo(context.Session, "보급품 획득", context.Session.StatusMessage, GetObjectiveText(context.Session), 2.2f);
     }
 
     private static void CheckTrainerSight(WorldMap map, GameContext context)
@@ -337,9 +508,9 @@ public sealed class WorldState : IGameState
             ? npc.TrainerRoster.Select(entry =>
             {
                 var species = context.Definitions.Species[entry.CreatureId];
-                return Creature.Create(species.Id, species.Name, entry.Level);
+                return MonsterWorkRuntime.CreateCreature(context.Definitions, species.Id, species.Name, entry.Level);
             }).ToList()
-            : [Creature.Create(context.Definitions.Species[npc.TrainerCreatureId].Id, context.Definitions.Species[npc.TrainerCreatureId].Name, npc.TrainerCreatureLevel)];
+            : [MonsterWorkRuntime.CreateCreature(context.Definitions, context.Definitions.Species[npc.TrainerCreatureId].Id, context.Definitions.Species[npc.TrainerCreatureId].Name, npc.TrainerCreatureLevel)];
 
         context.Session.ActiveEncounter = new Encounter
         {
@@ -447,12 +618,17 @@ public sealed class WorldState : IGameState
 
     private static void DrawWorldInfoPanel(GameContext context, WorldMap map, GameSession session)
     {
-        var rect = new Rectangle(18, 426, 924, 96);
+        var rect = new Rectangle(18, 360, 924, 140);
         context.UiSkin.DrawPanel(context.SpriteBatch, rect);
-        var title = string.IsNullOrWhiteSpace(session.WorldInfoTitle) ? $"{map.Name} | {GetAreaName(map, session.PlayerTilePosition)}" : session.WorldInfoTitle;
-        context.TextRenderer.DrawText(new Vector2(36, 438), title, 2, new Color(246, 236, 192));
-        context.TextRenderer.DrawText(new Vector2(36, 464), session.StatusMessage, 1, new Color(238, 240, 230));
-        context.TextRenderer.DrawText(new Vector2(36, 486), string.IsNullOrWhiteSpace(session.WorldInfoDetail) ? GetObjectiveText(session) : session.WorldInfoDetail, 1, new Color(208, 218, 226));
+        var title = string.IsNullOrWhiteSpace(session.WorldInfoTitle)
+            ? $"{map.Name} | {GetAreaName(map, session.PlayerTilePosition)}"
+            : session.WorldInfoTitle;
+        context.TextRenderer.DrawText(new Vector2(36, rect.Y + 16), title, 2, new Color(246, 236, 192));
+        context.TextRenderer.DrawText(new Vector2(36, rect.Y + 44), session.StatusMessage, 1, new Color(238, 240, 230));
+        var detail = string.IsNullOrWhiteSpace(session.WorldInfoDetail) ? GetObjectiveText(session) : session.WorldInfoDetail;
+        context.TextRenderer.DrawText(new Vector2(36, rect.Y + 72), detail, 1, new Color(208, 218, 226));
+        context.TextRenderer.DrawText(new Vector2(36, rect.Y + 100), "I : 주변 정보 유지 · Enter : 상호작용", 1, new Color(246, 226, 152));
+        context.TextRenderer.DrawText(new Vector2(36, rect.Y + 120), $"목표: {GetObjectiveText(session)}", 1, new Color(200, 212, 226));
     }
 
     private static string GetAreaName(WorldMap map, Point tilePosition)
@@ -471,46 +647,77 @@ public sealed class WorldState : IGameState
 
     private static string GetObjectiveText(GameSession session)
     {
-        if (!session.Progression.HasFlag("objective_route_challenge"))
+        if (!string.IsNullOrWhiteSpace(session.CurrentJobId) && !string.IsNullOrWhiteSpace(session.CurrentJobAssignmentTitle))
         {
-            return "안내원 유나에게 말을 걸어 첫 목표를 받으세요.  B 가방  P 파티  ESC 메뉴";
+            return session.CurrentJobStage switch
+            {
+                "field_execution" => $"현재 근무: {session.CurrentJobAssignmentTitle} / 목표 지역 {session.CurrentJobTargetMapId}",
+                "risk_decision" => $"현재 근무: {session.CurrentJobAssignmentTitle} / 창구로 돌아가 판단을 정리하세요.",
+                "report_or_delivery" => $"현재 근무: {session.CurrentJobAssignmentTitle} / 보고 후 정산을 받으세요.",
+                _ => $"현재 직군: {session.CurrentJobId}"
+            };
         }
 
-        if (!session.Progression.HasFlag("trainer_route_scout_defeated"))
+        if (!session.Progression.HasFlag("objective_route_challenge"))
         {
-            return "해솔길 중앙의 정찰원 리노를 이기고 숲으로 향하세요.";
+            return "접수원 유나에게 말을 걸어 첫 조사 의뢰를 받으세요.  B 가방  P 파티  ESC 메뉴";
+        }
+
+        if (!session.Progression.HasFlag("objective_route_cleared"))
+        {
+            return "해솔길 중앙의 정찰원 리노에게 통과 점검을 받고 조사 구간을 마무리하세요.";
         }
 
         if (!session.Progression.HasFlag("milestone_route_mark_claimed"))
         {
-            return "해솔마을로 돌아가 안내원 유나에게 보상을 받으세요.";
+            return "해솔마을로 돌아가 접수원 유나에게 첫 조사 보고를 완료하고 조사 표식을 받으세요.";
         }
 
         if (!session.Progression.HasFlag("trainer_forest_rookie_defeated"))
         {
-            return "속삭임 숲 안쪽의 수련생을 넘기고 숲길을 지나가세요.";
+            return "속삭임 숲 안쪽의 견습 조사원을 지나 위험 채집 구간을 통과하세요.";
         }
 
         if (!session.Progression.HasFlag("visited_pine_village"))
         {
-            return "숲을 빠져나가 바람개울 마을까지 도달해 보세요.";
+            return "속삭임 숲을 빠져나가 바람개울 마을 교역 거점까지 조사 기록을 이어가세요.";
         }
 
-        return "새 마을 시설을 둘러보고 다음 지역 준비를 하세요.";
+        return "바람개울 마을의 시설을 둘러보고 다음 조사와 교역 준비를 하세요.";
+    }
+
+    private static IReadOnlyList<string> GetShopItemIds(NpcDefinition npc, GameContext context)
+    {
+        if (!string.IsNullOrWhiteSpace(npc.ShopId) && context.Definitions.Shops.TryGetValue(npc.ShopId, out var shop))
+        {
+            return shop.ItemIds;
+        }
+
+        return npc.ShopItemIds;
+    }
+
+    private static bool ShouldOpenTradeHub(NpcDefinition npc, GameSession session)
+    {
+        return session.CurrentMapId == "pine_village" && npc.Id == "pine_guard";
+    }
+
+    private static bool ShouldOpenResidence(NpcDefinition npc, GameSession session)
+    {
+        return session.CurrentMapId == "player_home" && npc.Id == "home_mother";
     }
 
     private static void ShowEnvironmentInfo(GameSession session, WorldMap map, Point inspectTile)
     {
         var detail = map.GetTileType(inspectTile) switch
         {
-            TileType.Grass => "바람에 흔들리는 풀숲입니다. 야생 몬스터가 튀어나올 수 있습니다.",
-            TileType.Path => "많은 사람이 오간 길입니다. 다음 지역으로 이어집니다.",
-            TileType.Tree => "키 큰 나무가 길을 막고 있습니다.",
-            TileType.Building => "단단한 건물 외벽입니다.",
-            TileType.Door => "문이 보입니다. 들어갈 수 있는 장소일지도 모릅니다.",
-            TileType.Counter => "업무를 보는 카운터입니다.",
-            TileType.Service => "시설 기능이 있는 구역입니다.",
-            _ => "주변을 둘러보며 현재 위치와 목표를 정리합니다."
+            TileType.Grass => "바람에 흔들리는 풀숲입니다. 야생 개체가 튀어나올 수 있어 조사 중에는 주의가 필요합니다.",
+            TileType.Path => "사람과 짐수레가 자주 오가는 길목입니다. 조사 구간과 생활권을 이어 줍니다.",
+            TileType.Tree => "굵은 나무가 시야와 길을 막고 있습니다.",
+            TileType.Building => "생활권 시설의 외벽입니다.",
+            TileType.Door => "출입구가 보입니다. 조사 보고나 보급 정비를 맡는 시설일 수 있습니다.",
+            TileType.Counter => "접수나 거래를 처리하는 카운터입니다.",
+            TileType.Service => "회복이나 보급처럼 생활권 기능이 모인 구역입니다.",
+            _ => "주변을 둘러보며 현재 위치와 조사 목표를 다시 정리합니다."
         };
         ShowWorldInfo(session, $"{map.Name} | {GetAreaName(map, session.PlayerTilePosition)}", detail, GetObjectiveText(session), 4f);
     }

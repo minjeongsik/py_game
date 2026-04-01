@@ -5,14 +5,28 @@ using PyGame.Core.Camera;
 using PyGame.Core.Input;
 using PyGame.Core.Rendering;
 using PyGame.GameFlow;
+using PyGame.GameFlow.Simulation;
 using PyGame.GameFlow.StateManager;
 using PyGame.GameFlow.States.Bag;
+using PyGame.GameFlow.States.Board;
 using PyGame.GameFlow.States.Battle;
+using PyGame.GameFlow.States.Business;
 using PyGame.GameFlow.States.Dialogue;
+using PyGame.GameFlow.States.Governance;
+using PyGame.GameFlow.States.IndustryDuty;
+using PyGame.GameFlow.States.Job;
+using PyGame.GameFlow.States.Legal;
+using PyGame.GameFlow.States.Operations;
 using PyGame.GameFlow.States.Party;
 using PyGame.GameFlow.States.Pause;
+using PyGame.GameFlow.States.Profile;
+using PyGame.GameFlow.States.Residence;
+using PyGame.GameFlow.States.Security;
+using PyGame.GameFlow.States.SecurityDuty;
 using PyGame.GameFlow.States.Shop;
 using PyGame.GameFlow.States.Storage;
+using PyGame.GameFlow.States.Survey;
+using PyGame.GameFlow.States.Trade;
 using PyGame.GameFlow.States.Title;
 using PyGame.GameFlow.States.World;
 using PyGame.Infrastructure.Content;
@@ -39,6 +53,7 @@ public sealed class Game1 : Game
     private MenuRenderer? _menuRenderer;
     private DialogueBoxRenderer? _dialogueRenderer;
     private UiSkinRenderer? _uiSkin;
+    private InputHintRenderer? _inputHints;
 
     private GameDefinitions _definitions = null!;
     private GameSession _session = null!;
@@ -68,6 +83,19 @@ public sealed class Game1 : Game
             new StorageState(),
             new ShopState(),
             new DialogueState(),
+            new BoardState(),
+            new JobState(),
+            new LegalState(),
+            new SurveyState(),
+            new IndustryDutyState(),
+            new TradeState(),
+            new ProfileState(),
+            new OperationsState(),
+            new ResidenceState(),
+            new BusinessState(),
+            new GovernanceState(),
+            new SecurityState(),
+            new SecurityDutyState(),
             new BattleState(),
             new PauseState()
         });
@@ -88,6 +116,7 @@ public sealed class Game1 : Game
         _uiSkin = new UiSkinRenderer(GraphicsDevice);
         _menuRenderer = new MenuRenderer(_textRenderer, _uiSkin);
         _dialogueRenderer = new DialogueBoxRenderer(_textRenderer, _uiSkin);
+        _inputHints = new InputHintRenderer(_textRenderer, _uiSkin);
     }
 
     protected override void Update(GameTime gameTime)
@@ -145,6 +174,7 @@ public sealed class Game1 : Game
             MenuRenderer = _menuRenderer!,
             DialogueRenderer = _dialogueRenderer!,
             UiSkin = _uiSkin!,
+            InputHints = _inputHints!,
             GraphicsDevice = GraphicsDevice,
             SpriteBatch = _spriteBatch!,
             Definitions = _definitions,
@@ -181,7 +211,7 @@ public sealed class Game1 : Game
         {
             IsTrainerBattle = false,
             OpponentName = "야생",
-            OpponentParty = [Domain.Creatures.Creature.Create(species.Id, species.Name, 5)]
+            OpponentParty = [MonsterWorkRuntime.CreateCreature(_definitions, species.Id, species.Name, 5)]
         };
         _session.ReturnState = GameStateId.World;
         _session.StatusMessage = "QA 전투 부트 모드";

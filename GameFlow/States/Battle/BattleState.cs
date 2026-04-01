@@ -1,4 +1,4 @@
-using Microsoft.Xna.Framework;
+﻿using Microsoft.Xna.Framework;
 using Microsoft.Xna.Framework.Graphics;
 using Microsoft.Xna.Framework.Input;
 using PyGame.Domain.Battle;
@@ -73,7 +73,7 @@ public sealed class BattleState : IGameState
                     context.Session.Party.RecoverAfterDefeat(context.Definitions.Moves);
                     context.Session.CurrentMapId = context.Session.RecoveryMapId;
                     context.Session.PlayerTilePosition = context.Session.RecoveryTilePosition;
-                    context.Session.StatusMessage = "기절해서 마지막 회복 지점으로 돌아왔다.";
+                    context.Session.StatusMessage = "기절해서 마지막 회복 지점으로 돌아갑니다.";
                 }
 
                 context.Session.ActiveEncounter = null;
@@ -170,6 +170,7 @@ public sealed class BattleState : IGameState
 
         context.SpriteBatch.Begin(samplerState: SamplerState.PointClamp);
         DrawBackdrop(context);
+        DrawBattleHints(context);
 
         if (enemy is not null)
         {
@@ -186,7 +187,7 @@ public sealed class BattleState : IGameState
                 context,
                 new Rectangle(470, 30, 230, 78),
                 enemy,
-                encounter!.IsTrainerBattle ? $"트레이너 {encounter.OpponentName}" : "야생",
+                encounter!.IsTrainerBattle ? encounter.OpponentName : "야생",
                 false);
         }
 
@@ -255,7 +256,7 @@ public sealed class BattleState : IGameState
         _superGauge = 0f;
         _effectFlashColor = Color.White;
         _resultMessage = encounter.IsTrainerBattle
-            ? $"트레이너 {encounter.OpponentName}이(가) 승부를 걸어왔다!"
+            ? $"{encounter.OpponentName}이(가) 현장 대결을 신청했다!"
             : $"야생 {encounter.OpponentCreature.Nickname}이(가) 나타났다!";
         BindMoveSets(context, encounter);
     }
@@ -355,7 +356,7 @@ public sealed class BattleState : IGameState
         if (context.Input.WasPressed(Keys.Escape))
         {
             _selectingItems = false;
-            _resultMessage = "가방을 닫았습니다.";
+            _resultMessage = "가방을 닫습니다.";
             return;
         }
 
@@ -483,13 +484,13 @@ public sealed class BattleState : IGameState
             return;
         }
 
-        var rewardText = AwardExperience(context, encounter, message);
+        var rewardText = BuildAwardExperienceMessage(context, encounter, message);
         if (encounter.IsTrainerBattle)
         {
             context.Session.Progression.TryAddFlag(encounter.TrainerDefeatedFlag);
             context.Session.Progression.TryAddFlag(encounter.TrainerVictoryFlag);
-            context.Session.StatusMessage = $"{encounter.OpponentName}와의 승부에서 이겼다.";
-            _resultMessage = $"{rewardText} 승부에서 이겼다!";
+            context.Session.StatusMessage = $"{encounter.OpponentName}과의 공식 대결에서 이겼다!";
+            _resultMessage = $"{rewardText} 공식 대결에서 이겼다!";
         }
         else
         {
@@ -531,7 +532,7 @@ public sealed class BattleState : IGameState
     {
         if (encounter.IsTrainerBattle)
         {
-            _resultMessage = "트레이너의 몬스터는 포획할 수 없습니다.";
+            _resultMessage = "공식 대결 중인 상대 개체는 포획할 수 없습니다.";
             return;
         }
 
@@ -544,7 +545,7 @@ public sealed class BattleState : IGameState
 
         if (!context.Session.Inventory.UseOne(captureItemId))
         {
-            _resultMessage = $"{sphere.Name}가 부족합니다.";
+            _resultMessage = $"{sphere.Name}이(가) 부족합니다.";
             return;
         }
 
@@ -555,7 +556,7 @@ public sealed class BattleState : IGameState
 
         if (Random.Shared.NextSingle() > chance)
         {
-            EnemyTurn(context, encounter, $"{sphere.Name}를 던졌다. 하지만 포획에 실패했다.");
+            EnemyTurn(context, encounter, $"{sphere.Name}을(를) 던졌지만 포획에 실패했다.");
             return;
         }
 
@@ -579,12 +580,12 @@ public sealed class BattleState : IGameState
     {
         if (encounter.IsTrainerBattle)
         {
-            _resultMessage = "트레이너 승부에서는 도망칠 수 없습니다.";
+            _resultMessage = "공식 대결에서는 물러날 수 없습니다.";
             return;
         }
 
         context.Session.StatusMessage = "전투에서 무사히 벗어났다.";
-        _resultMessage = "무사히 도망쳤다.";
+        _resultMessage = "무사히 빠져나왔다.";
         _awaitingDismiss = true;
     }
 
@@ -594,7 +595,7 @@ public sealed class BattleState : IGameState
         {
             if (forced)
             {
-                ResolveDefeat(context, "더 이상 싸울 수 있는 동료가 없다.");
+                ResolveDefeat(context, "더 이상 내보낼 수 있는 동료가 없다.");
             }
             else
             {
@@ -662,7 +663,7 @@ public sealed class BattleState : IGameState
     private void ResolveDefeat(GameContext context, string message)
     {
         _returnAfterDismiss = true;
-        _resultMessage = $"{message} 눈앞이 깜깜해졌다. Enter를 누르면 마지막 회복 지점으로 돌아간다.";
+        _resultMessage = $"{message} Enter를 누르면 마지막 회복 지점으로 돌아갑니다.";
         _awaitingDismiss = true;
     }
 
@@ -673,7 +674,7 @@ public sealed class BattleState : IGameState
         var gained = Math.Max(4, (enemy.Level * (encounter.IsTrainerBattle ? 4 : 3)) + 6);
         player.Experience += gained;
 
-        var message = $"{prefix} 경험치 {gained}을(를) 얻었다.";
+        var message = $"{prefix} 경험치 {gained}을(를) 얻었다!";
         var leveledUp = false;
         while (player.Experience >= Creature.GetExperienceForNextLevel(player.Level))
         {
@@ -684,12 +685,41 @@ public sealed class BattleState : IGameState
             player.CurrentHealth = Math.Min(player.MaxHealth, player.CurrentHealth + (player.MaxHealth - previousMaxHealth) + 4);
             var healthGain = player.MaxHealth - previousMaxHealth;
             leveledUp = true;
-            message += $" {player.Nickname}???덈꺼??{player.Level}???섏뿀怨?理쒕?? HP媛 {healthGain}留뚰겮 ?ㅼ뿬?듬땲??";
+            message += $" {player.Nickname}의 레벨이 {player.Level}이 되었고 최대 HP가 {healthGain}만큼 올랐다!";
         }
 
         if (leveledUp)
         {
-            message += $" {player.Nickname}의 레벨이 {player.Level}이 되었다!";
+            message += $" {player.Nickname}이(가) 더 강해졌다!";
+        }
+
+        return message;
+    }
+
+    private static string BuildAwardExperienceMessage(GameContext context, Encounter encounter, string prefix)
+    {
+        var player = context.Session.Party.ActiveCreature;
+        var enemy = encounter.OpponentCreature;
+        var gained = Math.Max(4, (enemy.Level * (encounter.IsTrainerBattle ? 4 : 3)) + 6);
+        player.Experience += gained;
+
+        var message = $"{prefix} 경험치 {gained}을(를) 얻었다!";
+        var leveledUp = false;
+        while (player.Experience >= Creature.GetExperienceForNextLevel(player.Level))
+        {
+            player.Experience -= Creature.GetExperienceForNextLevel(player.Level);
+            var previousMaxHealth = player.MaxHealth;
+            player.Level++;
+            player.MaxHealth = Creature.CalculateMaxHealth(player.Level);
+            player.CurrentHealth = Math.Min(player.MaxHealth, player.CurrentHealth + (player.MaxHealth - previousMaxHealth) + 4);
+            var healthGain = player.MaxHealth - previousMaxHealth;
+            leveledUp = true;
+            message += $" {player.Nickname}의 레벨이 {player.Level}이 되었고 최대 HP가 {healthGain}만큼 올랐다!";
+        }
+
+        if (leveledUp)
+        {
+            message += $" {player.Nickname}이(가) 더 강해졌다!";
         }
 
         return message;
@@ -710,6 +740,63 @@ public sealed class BattleState : IGameState
             var x = 52 + (i * 178);
             context.PrimitiveRenderer.Fill(new Rectangle(x, 84 + ((i % 2) * 12), 80, 22), new Color(196, 230, 216, 140));
         }
+    }
+
+    private void DrawBattleHints(GameContext context)
+    {
+        var hints = BuildBattleHintLines();
+        var rect = new Rectangle(620, 26, 312, Math.Max(36, 18 * hints.Length + 10));
+        context.InputHints.DrawHints(context.SpriteBatch, rect, hints);
+    }
+
+    private string[] BuildBattleHintLines()
+    {
+        if (_selectingMoves)
+        {
+            return new[]
+            {
+                "↑↓ / W S : 기술 선택",
+                "Enter / Space : 사용",
+                "Esc : 취소"
+            };
+        }
+
+        if (_selectingItems)
+        {
+            return new[]
+            {
+                "↑↓ : 아이템 선택",
+                "Enter / Space : 사용",
+                "Esc : 닫기"
+            };
+        }
+
+        if (_selectingItemTarget)
+        {
+            return new[]
+            {
+                "↑↓ : 대상 선택",
+                "Enter / Space : 사용",
+                "Esc : 이전 단계"
+            };
+        }
+
+        if (_selectingSwitch)
+        {
+            return new[]
+            {
+                "↑↓ : 교체 후보",
+                "Enter / Space : 확정",
+                "Esc : 취소"
+            };
+        }
+
+        return new[]
+        {
+            "↑↓ / W S : 행동 선택",
+            "Enter / Space : 실행",
+            "Esc : 도주 / 대화 취소"
+        };
     }
 
     private void DrawCreatureShadow(GameContext context, Rectangle rect, float impactTimer)
@@ -756,19 +843,47 @@ public sealed class BattleState : IGameState
 
     private void DrawMessage(GameContext context, Encounter? encounter)
     {
-        var rect = new Rectangle(34, 426, 540, 90);
+        var rect = new Rectangle(34, 404, 540, 132);
         context.UiSkin.DrawPanel(context.SpriteBatch, rect);
-        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 14), _resultMessage, 2, new Color(232, 236, 240));
-        if (_awaitingDismiss)
+        var message = string.IsNullOrWhiteSpace(_resultMessage) ? "무엇을 할지 선택하세요." : _resultMessage;
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 12), message, 1, new Color(232, 236, 240));
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 44), BuildBattleHelperLine(encounter), 1, new Color(208, 220, 228));
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Y + 68), "↑↓ / W S : 선택 · I : 상태 확인", 1, new Color(200, 210, 226));
+        var instructionY = rect.Bottom - 44;
+        var actionLine = _awaitingDismiss ? "Enter : 전투 종료" : "Enter : 결정 · Esc : 취소/도주";
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, instructionY), actionLine, 1, new Color(246, 226, 152));
+        var gaugeLine = $"필살기 게이지 {_superGauge:F0}%";
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, instructionY + 20), gaugeLine, 1, new Color(246, 226, 152));
+    }
+
+    private string BuildBattleHelperLine(Encounter? encounter)
+    {
+        if (_selectingMoves)
         {
-            context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), "Enter로 전투를 마칩니다.", 1, new Color(246, 226, 152));
-            return;
+            return "기술을 선택하고 Enter로 사용, Esc로 뒤로 갑니다.";
         }
 
-        var helper = encounter is not null && encounter.IsTrainerBattle
-            ? "Enter 선택  ESC 도주 시도  트레이너전은 포획 불가"
-            : "Enter 선택  ESC 도주  HP를 깎을수록 포획이 쉬워집니다";
-        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), helper, 1, new Color(208, 220, 228));
+        if (_selectingItems)
+        {
+            return "회복 아이템을 고르고 Enter, Esc로 닫기.";
+        }
+
+        if (_selectingItemTarget)
+        {
+            return "사용 대상을 고르고 Enter, Esc로 이전 단계.";
+        }
+
+        if (_selectingSwitch)
+        {
+            return "교체할 동료를 고르고 Enter, Esc로 취소.";
+        }
+
+        if (encounter is not null && encounter.IsTrainerBattle)
+        {
+            return "정식 대결! Enter로 행동, Esc는 물러날 수 없습니다.";
+        }
+
+        return "Enter로 동작 선택, Esc는 도망을 시도합니다.";
     }
 
     private void DrawActions(GameContext context)
@@ -809,7 +924,7 @@ public sealed class BattleState : IGameState
             items,
             _itemSelection,
             item => $"{item.Name}  x{context.Session.Inventory.GetQuantity(item.Id)}  +{item.HealAmount}HP",
-            items.Count == 0 ? "회복 아이템이 없습니다." : "대상을 골라 회복합니다");
+            items.Count == 0 ? "회복 아이템이 없습니다." : "대상을 골라 회복합니다.");
     }
 
     private void DrawTargets(GameContext context)
@@ -837,7 +952,7 @@ public sealed class BattleState : IGameState
                 var marker = creature == context.Session.Party.ActiveCreature ? "선두" : creature.IsFainted ? "기절" : "대기";
                 return $"{creature.Nickname}  Lv {creature.Level}  {marker}";
             },
-            _forcedSwitch ? "쓰러진 뒤에는 반드시 교체해야 합니다." : "ESC 취소");
+            _forcedSwitch ? "기절한 뒤에는 반드시 교체해야 합니다." : "ESC 취소");
     }
 
     private void DrawListPanel<T>(GameContext context, Rectangle rect, string title, IReadOnlyList<T> rows, int selectedIndex, Func<T, string> formatter, string footer)
@@ -854,7 +969,7 @@ public sealed class BattleState : IGameState
 
         const int rowHeight = 24;
         var contentTop = rect.Y + 40;
-        var contentBottom = rect.Bottom - 36;
+        var contentBottom = rect.Bottom - 42;
         var visibleRows = Math.Max(1, (contentBottom - contentTop) / rowHeight);
         var maxStart = Math.Max(0, rows.Count - visibleRows);
         var startIndex = Math.Clamp(selectedIndex - visibleRows + 1, 0, maxStart);
@@ -875,7 +990,7 @@ public sealed class BattleState : IGameState
         }
 
         DrawScrollIndicator(context, rect, startIndex, visibleRows, rows.Count);
-        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 24), footer, 1, new Color(208, 220, 228));
+        context.TextRenderer.DrawText(new Vector2(rect.X + 18, rect.Bottom - 28), footer, 1, new Color(208, 220, 228));
     }
 
     private static void DrawScrollIndicator(GameContext context, Rectangle rect, int startIndex, int visibleRows, int totalRows)
@@ -1012,3 +1127,4 @@ public sealed class BattleState : IGameState
         _effectFlashColor = Color.White;
     }
 }
+

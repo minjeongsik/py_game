@@ -22,6 +22,7 @@ public sealed class GameContext
     public required MenuRenderer MenuRenderer { get; init; }
     public required DialogueBoxRenderer DialogueRenderer { get; init; }
     public required UiSkinRenderer UiSkin { get; init; }
+    public required InputHintRenderer InputHints { get; init; }
     public required GraphicsDevice GraphicsDevice { get; init; }
     public required SpriteBatch SpriteBatch { get; init; }
     public required GameDefinitions Definitions { get; init; }
